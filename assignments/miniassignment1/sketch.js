@@ -1,3 +1,5 @@
+// I used Copilot to help with finding p5 syntax for methods.
+
 function setup() {
   createCanvas(500, 500);
 }
