@@ -152,8 +152,13 @@ function setup() {
   // filterState.position(350, height + 50);
 
   // Add save artwork button
-  // buttonSave = createButton("Save Artwork");
-  // buttonSave.position(210, height + 100);
+  buttonSave = createButton("Save Artwork");
+  buttonSave.position(550, height + 35);
+  buttonSave.style('background-color', 'rgba(104, 168, 89, 0.6)');
+  buttonSave.style('color', 'white');
+  buttonSave.style('border', 'none');
+  buttonSave.style('border-radius', '8px');
+  buttonSave.style('padding', '4px 8px');
 
   // Create skill level radio button
   skillRadioButton = createRadio(150);
@@ -210,7 +215,7 @@ function draw() {
   addColorButton.style('background-color', colorPicker.color());
   buttonReset.mousePressed(clearCanvas);
   // buttonFilters.mousePressed(removeFilters);
-  // buttonSave.mousePressed(saveImage);
+  buttonSave.mousePressed(saveImage);
 
   // Update palette box transparency based on slider
   let opacity = map(paintDrop, 5, 100, 0.5, 0.6); // Lower paintDrop = more transparent
