@@ -33,7 +33,7 @@ let monthDropdown;
 
 
 function preload() {
-  dataTable = loadTable('assets/temp.csv', 'csv', 'header');
+  dataTable = loadTable('assets/activities_1107.csv', 'csv', 'header');
   starImg = loadImage('assets/star.png');
   flagImg = loadImage('assets/flag.png');
 }
@@ -71,7 +71,7 @@ function setupElements() {
     // Calendar grid
     drawGrid();
     
-    titleText = createElement('h2', "BRENNA'S ROAD TO THE HALF MARATHON");
+    titleText = createElement('h2', "BRENNA'S ROAD TO THE HALF MARATHON" + " 🏃🏽‍♀️");
     titleText.position(475, 25);
     titleText.style('background-color', '#909B75');
     titleText.style('color', 'white');
@@ -203,8 +203,8 @@ function drawGrid() {
 function racePrediction() {
   // Get running data from dataTable
   let activityTypeCol = dataTable.getColumn('Activity Type');
-  let elapsedTimeCol = dataTable.getColumn('Elapsed Time (Seconds)');
-  let distanceCol = dataTable.getColumn('Distance (Kilometers)');
+  let elapsedTimeCol = dataTable.getColumn('Elapsed Time');
+  let distanceCol = dataTable.getColumn('Distance');
   
   // Variables to calculate average running pace
   let totalRunDistance = 0;
@@ -227,7 +227,7 @@ function racePrediction() {
   // Calculate average pace (minutes per mile)
   let avgPace = totalRunTime / totalRunDistance;
   
-  // Calculate predicted half marathon time (13.1 miles)
+  // Calculate predicted half marathon time 
   let halfMarathonDistance = 13.1;
   let predictedTimeMin = avgPace * halfMarathonDistance;
   let predictedHours = Math.floor(predictedTimeMin / 60);
@@ -251,8 +251,8 @@ function parseData() {
   activityDateCol = dataTable.getColumn('Activity Date');
   let activityNameCol = dataTable.getColumn('Activity Name');
   let activityTypeCol = dataTable.getColumn('Activity Type');
-  let elapsedTimeCol = dataTable.getColumn('Elapsed Time (Seconds)');
-  let distanceCol = dataTable.getColumn('Distance (Kilometers)');
+  let elapsedTimeCol = dataTable.getColumn('Elapsed Time');
+  let distanceCol = dataTable.getColumn('Distance');
   
   for (let i = 0; i < activityDateCol.length; i++) {
     let dateStr = activityDateCol[i];
@@ -348,7 +348,168 @@ function draw() {
   if (hoveredDate) {
     drawTooltip();
   }
+
+  // Draw milage progress
+  drawProgressBar();
+
+  // Draw weekly pace stats
+  drawWeeklyPace();
 }
+
+function drawWeeklyPace() {
+  if (currentMonth < 6) return;
+
+  let boxX = startX + calendarWidth - 15;
+  let boxY = startY + 100;
+  let boxW = 125;
+  let boxH = 50;
+
+  // Get first day of month
+  let firstDate = new Date(currentYear, currentMonth-1, 1);
+  let firstDay = firstDate.getDay();
+  let daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+  
+  // Set number of weeks in month
+  let numWeeks;
+  if (parseInt(currentMonth) === 11) {
+    numWeeks = 2;
+  }
+  else {
+    numWeeks = 5;
+  }
+
+  // Iterate through each week
+  for (let week = 0; week < numWeeks; week++) {
+
+    // Get all dates for this week only
+    let weekStartDay = week * 7 - firstDay + 1;
+    let weekEndDay = Math.min(weekStartDay + 6, daysInMonth);
+    
+    let totalPace = 0;
+    let runCount = 0;
+    
+    // Get all run activities for that week
+    for (let day = weekStartDay; day <= weekEndDay; day++) {
+      if (day < 1) continue;
+      
+      let dateKey = currentMonth + '/' + day + '/' + currentYear;
+      
+      if (activitiesMap[dateKey]) {
+        activitiesMap[dateKey].forEach(activity => {
+          if (activity.type === 'Run' && activity.pace) {
+            totalPace += parseFloat(activity.pace);
+            runCount++;
+          }
+        });
+      }
+    }
+    
+    // Calculate average pace for that week
+    let avgPace;
+    let mins = 0;
+    let secs = 0;
+
+    if (runCount > 0){
+      let avgPaceDecimal = (totalPace / runCount).toFixed(2);
+      mins = floor(avgPaceDecimal);
+      secs = round((avgPaceDecimal-mins)*60);
+      if (secs < 10){
+        secs = "0" + secs;
+      }
+      avgPace = mins + ":" + secs;
+    }
+    else{
+      avgPace = "--";
+    }
+    
+    // Display average pace
+    push();
+    fill('#909B75');
+    noStroke();
+    rect(boxX, boxY + week * (boxH + 45), boxW, boxH, 8);
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(12);
+    textStyle(BOLD);
+    text('Week ' + (week + 1) + ' Avg Pace:', boxX+boxW/2, boxY + week * (boxH + 45) + 10);
+    text(avgPace + " mins/mile", boxX+boxW/2, boxY + week * (boxH + 45) + 30);
+    pop();
+  }
+
+
+}
+
+function drawProgressBar() {
+  // Calculate total miles run up to current month
+  let totalMiles = 0;
+  let totalRuns = 0;
+
+  for (let dateKey in activitiesMap) {
+    let [month, day, year] = dateKey.split('/').map(num => parseInt(num));
+    
+    // Only include activities up to current month
+    if (month <= currentMonth) {
+      activitiesMap[dateKey].forEach(activity => {
+        if (activity.type === 'Run' && !activity.isPrediction) {
+          totalMiles += parseFloat(activity.distance);
+          totalRuns++;
+        }
+      });
+    }
+  }
+
+  let goalMiles = 150; 
+  let progress = totalMiles / goalMiles;
+
+  let barW = 500;
+  let barH = 30;
+  let barX = (width-barW)/2;
+  let barY = 700;
+
+  // Draw progress bar
+  push();
+  fill(220);
+  noStroke();
+  rect(barX, barY, barW, barH);
+  fill(255, 100, 100);
+  rect(barX, barY, barW*progress, barH);
+
+  // Draw labels
+  fill(50);
+  textAlign(CENTER, CENTER);
+  textSize(16);
+  textStyle(BOLD);
+  text("Running Training Progress: ", barX-110, barY+15);
+
+  // Draw milestone markers
+  rect(barX + (barW/4), barY-5, 3, 40);
+  rect(barX + 3*(barW/4), barY-5, 3, 40);
+  rect(barX + barW/2, barY-5, 3, 40);
+
+  // Add milage tooltip
+  if (mouseX >= barX && mouseX <= barX + barW * progress && 
+      mouseY >= barY && mouseY <= barY + barH) {
+        
+    let tooltipText = totalMiles.toFixed(1) + ' miles completed';
+    let tooltipW = textWidth(tooltipText) + 20;
+    let tooltipH = 30;
+    let tooltipX = mouseX - tooltipW / 2;
+    let tooltipY = barY + tooltipH+5;
+    
+    fill(50);
+    noStroke();
+    rect(tooltipX, tooltipY, tooltipW, tooltipH, 5);
+    
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    textStyle(NORMAL);
+    text(tooltipText, tooltipX + tooltipW/2, tooltipY + tooltipH/2);
+  }
+  
+  pop();
+}
+
 
 function checkHover() {
   let firstDate = new Date(currentYear, currentMonth-1, 1);
@@ -393,7 +554,7 @@ function formatTime(hours, minutes) {
 
 function getPredictionLines(activity) {
   return [
-    activity.name + ' 🏃',
+    activity.name + ' 🏃🏽‍♀️',
     'Predicted Time: ' + formatTime(activity.timeHour, activity.timeMin),
     'Distance: ' + activity.distance + ' miles',
     'Based on ' + activity.totalRuns + ' runs (' + activity.totalDistance + ' mi)',
