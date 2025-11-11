@@ -40,7 +40,7 @@ function preload() {
 
 function setup() {
   // Check csv imported correctly
-  if (dataTable && dataTable.getRowCount() == 79){ // TODO: change number of rows
+  if (dataTable && dataTable.getRowCount() === 92){
     console.log("CSV loaded successfully.")
   }
 
@@ -225,21 +225,27 @@ function racePrediction() {
   }
   
   // Calculate average pace (minutes per mile)
-  let avgPace = totalRunTime / totalRunDistance;
+  let avgPaceDec = totalRunTime / totalRunDistance;
+  avgPaceMins = floor(avgPaceDec);
+  avgPaceSecs = round((avgPaceDec-avgPaceMins)*60);
+  if (avgPaceSecs < 10){
+    avgPaceSecs = "0" + avgPaceSecs;
+  }
+  let avgPace = avgPaceMins + ":" + avgPaceSecs;
   
   // Calculate predicted half marathon time 
   let halfMarathonDistance = 13.1;
-  let predictedTimeMin = avgPace * halfMarathonDistance;
-  let predictedHours = Math.floor(predictedTimeMin / 60);
-  let predictedMinutes = Math.round(predictedTimeMin % 60);
+  let predictedTimeMin = floor(avgPaceDec * halfMarathonDistance);
+  let predictedHours = floor(predictedTimeMin / 60);
+  let predictedMinutes = round(predictedTimeMin % 60);
   
-  console.log("Average running pace:", avgPace.toFixed(2), "min/mile");
+  console.log("Average running pace:", avgPace, "min/mile");
   console.log("Predicted half marathon time:", predictedHours, "hr", predictedMinutes, "min");
   console.log("Based on", runCount, "runs");
   
   // Return prediction data
   return {
-    avgPace: avgPace.toFixed(2),
+    avgPace: avgPace,
     predictedHours: predictedHours,
     predictedMinutes: predictedMinutes,
     totalRuns: runCount,
@@ -290,10 +296,18 @@ function parseData() {
     let distance = (distanceKm * 0.621371).toFixed(2);
     
     // Calculate pace (minutes per mile) for runs
-    let pace = null;
+    let paceDec = 0;
+    let paceMins = 0;
+    let pace = 0;
     if (activityTypeCol[i] === 'Run' && distance > 0) {
       let totalMinutes = elapsedHour * 60 + remainingMin;
-      pace = (totalMinutes / parseFloat(distance)).toFixed(2);
+      paceDec = (totalMinutes / parseFloat(distance)).toFixed(2);
+      paceMins = floor((totalMinutes / parseFloat(distance)).toFixed(2));
+      paceSecs = round((paceDec-paceMins)*60);
+      if (paceSecs < 10){
+        paceSecs = "0" + paceSecs;
+      }
+      pace = paceMins + ":" + paceSecs;
     }
     
     activitiesMap[dateKey].push({
@@ -432,7 +446,7 @@ function drawWeeklyPace() {
     textSize(12);
     textStyle(BOLD);
     text('Week ' + (week + 1) + ' Avg Pace:', boxX+boxW/2, boxY + week * (boxH + 45) + 10);
-    text(avgPace + " mins/mile", boxX+boxW/2, boxY + week * (boxH + 45) + 30);
+    text(avgPace + " min/mile", boxX+boxW/2, boxY + week * (boxH + 45) + 30);
     pop();
   }
 
