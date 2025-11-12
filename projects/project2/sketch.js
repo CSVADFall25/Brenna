@@ -447,6 +447,8 @@ function drawWeeklyPace() {
   }
 
   // Iterate through each week
+  let totalPaceSum = 0;
+  let totalRuns = 0;
   for (let week = 0; week < numWeeks; week++) {
 
     // Get all dates for this week only
@@ -466,6 +468,7 @@ function drawWeeklyPace() {
         activitiesMap[dateKey].forEach(activity => {
           if (activity.type === 'Run' && activity.paceDec) {
             totalPace += parseFloat(activity.paceDec);
+            totalPaceSum += parseFloat(activity.paceDec);
             runCount++;
           }
         });
@@ -481,6 +484,7 @@ function drawWeeklyPace() {
       let avgPaceDecimal = (totalPace / runCount).toFixed(2);
       mins = floor(avgPaceDecimal);
       secs = round((avgPaceDecimal-mins)*60);
+
       if (secs < 10){
         secs = "0" + secs;
       }
@@ -503,9 +507,38 @@ function drawWeeklyPace() {
     textStyle(NORMAL);
     text(avgPace + " min/mile", boxX+boxW/2, boxY + week * (boxH + 45) + 30);
     pop();
+
+    totalRuns += runCount;
   }
 
+  // Calculate average monthly pace
+  let avgPaceDec = totalPaceSum/totalRuns;
+  let minsTemp = floor(avgPaceDec);
+  let secsTemp = (avgPaceDec - minsTemp)*60;
+  if (secsTemp > 60){
+    minsTemp += floor(secsTemp/60);
+    secsTemp = secsTemp % 60;
+  }
+  secsTemp = round(secsTemp);
+  if (secsTemp < 10){
+    secsTemp = "0" + secsTemp;
+  }
+  // console.log("average month pace: ", minsTemp + ":" + secsTemp);
 
+  // Draw monthly pace to canvas
+  push();
+  // fill('#909B75');
+  fill('#4a5238');
+  noStroke();
+  rect(boxX, boxY + numWeeks * (boxH + 45), boxW, boxH, 8);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  textSize(12);
+  textStyle(BOLD);
+  text('Avg Monthly Pace:', boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 10);
+  textStyle(NORMAL);
+  text(minsTemp + ":" + secsTemp + " min/mile", boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 30);
+  pop();
 }
 
 function drawProgressBar() {
