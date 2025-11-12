@@ -80,6 +80,9 @@ function setupElements() {
     titleText.style('border', 'none');
     titleText.style('border-radius', '8px');
     titleText.style('padding', '4px 8px');
+    // titleText.style('font-family', 'sans-serif');
+    // titleText.style('font-weight', 'bold');       
+    // titleText.style('font-size', '20px');        
 
     // Month dropdown
     monthDropdown = createSelect();
@@ -141,8 +144,36 @@ function drawGrid() {
         let x = startX + c * (boxW + boxSpacing);
         let y = startY + r * (boxH + boxSpacing);
         
-        // Draw box
+        // Default fill
         fill(250);
+        
+        // Only calculate pace for actual date cells
+        if (r > 0) {
+          let cellIndex = (r - 1) * numCols + c;
+          
+          if (cellIndex >= firstDay && dayCounter <= daysInMonth) {
+            let dateKey = currentMonth + '/' + dayCounter + '/' + currentYear;
+            
+            if (activitiesMap[dateKey]) {
+              let totalPace = 0;
+              let runCount = 0;
+              
+              activitiesMap[dateKey].forEach(activity => {
+                if (activity.type === 'Run' && activity.paceDec && !activity.isPrediction) {
+                  totalPace += parseFloat(activity.paceDec);
+                  runCount++;
+                }
+              });
+              
+              if (runCount > 0) {
+                let avgPace = totalPace / runCount;
+                fill(getPaceColor(avgPace));
+              }
+            }
+          }
+        }
+
+        // Draw box
         stroke(200);
         strokeWeight(1);
         rect(x, y, boxW, boxH);
@@ -170,7 +201,7 @@ function drawGrid() {
               push();
               imageMode(CENTER);
               image(starImg, x + boxW/2, y + boxH/2, 40, 40);
-              fill('#909B75');
+              fill('#4a5238');
               textSize(12);
               text("First Day of Training!", x+15, y+boxH-5);
               pop();
@@ -181,7 +212,7 @@ function drawGrid() {
               push();
               imageMode(CENTER);
               image(flagImg, x + boxW/2, y + boxH/2, 60, 40);
-              fill('#909B75');
+              fill('#4a5238');
               textSize(12);
               text("Race Day!", x+40, y+boxH-5);
               pop();
@@ -527,7 +558,6 @@ function drawWeeklyPace() {
 
   // Draw monthly pace to canvas
   push();
-  // fill('#909B75');
   fill('#4a5238');
   noStroke();
   rect(boxX, boxY + numWeeks * (boxH + 45), boxW, boxH, 8);
@@ -545,16 +575,21 @@ function drawProgressBar() {
   // Calculate total miles run up to current month
   let totalMiles = 0;
   let totalRuns = 0;
+  let currMonthRuns = 0;
 
   for (let dateKey in activitiesMap) {
     let [month, day, year] = dateKey.split('/').map(num => parseInt(num));
     
     // Only include activities up to current month
     if (month <= currentMonth) {
+      
       activitiesMap[dateKey].forEach(activity => {
         if (activity.type === 'Run' && !activity.isPrediction) {
           totalMiles += parseFloat(activity.distance);
           totalRuns++;
+          if (month === parseInt(currentMonth)){
+            currMonthRuns++;
+          }
         }
       });
     }
@@ -575,6 +610,9 @@ function drawProgressBar() {
   rect(barX, barY, barW, barH);
   fill(255, 100, 100);
   rect(barX, barY, barW*progress, barH);
+  fill(0);
+  textSize(14);
+  text("+ " + currMonthRuns + " runs", barX + (barW*progress) + 8, barY + 19);
 
   // Draw labels
   fill(50);
@@ -647,6 +685,20 @@ function checkHover() {
         dayCounter++;
       }
     }
+  }
+}
+
+function getPaceColor(paceDec) {
+  let fastPace = 9.75;   // 9:45 min/mile or faster
+  let slowPace = 11.25;  // 11:15 min/mile or slower 
+  
+  if (paceDec <= fastPace) {
+    return color(74, 82, 56, 200); // dark green ('#909B75'), #4a5238
+  } else if (paceDec >= slowPace) {
+    return color(200, 210, 180, 200); // light green
+  } else {
+    let t = map(paceDec, fastPace, slowPace, 0, 1);
+    return lerpColor(color(74, 82, 56, 200), color(200, 210, 180, 200), t);
   }
 }
 
