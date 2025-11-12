@@ -217,6 +217,46 @@ function drawGrid() {
               text("Race Day!", x+40, y+boxH-5);
               pop();
             }
+
+            if (currentMonth == 10 && dayCounter == 31) {
+              push();
+              fill('#4a5238');
+              textSize(12);
+              text("Halloween 🎃", x+35, y+boxH-7);
+              pop();
+            }
+
+            if (currentMonth == 6 && dayCounter == 20) {
+              push();
+              fill('#4a5238');
+              textSize(12);
+              text("Summer Solstice ☀️", x+20, y+boxH-7);
+              pop();
+            }
+
+            if (currentMonth == 9 && dayCounter == 22) {
+              push();
+              fill('#4a5238');
+              textSize(12);
+              text("Fall Equinox 🍁", x+25, y+boxH-7);
+              pop();
+            }
+
+            if (currentMonth == 11 && dayCounter == 2) {
+              push();
+              fill('#4a5238');
+              textSize(12);
+              text("Fall Back ⏰", x+35, y+boxH-7);
+              pop();
+            }
+
+            if (currentMonth == 11 && dayCounter == 7) {
+              push();
+              fill(255);
+              textSize(12);
+              text("Last Training Day! 💪", x+15, y+boxH-7);
+              pop();
+            }
             
             // Check if this date has activities
             let dateKey = currentMonth + '/' + dayCounter + '/' + currentYear;
@@ -418,6 +458,13 @@ function draw() {
 
   // Draw actual race stats
   drawRaceStats();
+
+  if (currentMonth == 11) {
+    push();
+    textSize(30);
+    text('🎉', mouseX, mouseY-5);
+    pop();
+  }
 }
 
 function toggleRaceStats(){
