@@ -335,6 +335,7 @@ function parseData() {
     let elapsedMin = Math.floor(elapsedSeconds / 60);
     let elapsedHour = Math.floor(elapsedMin / 60);
     let remainingMin = elapsedMin % 60; // Minutes after removing full hours
+    let remainingSec = elapsedSeconds % 60;
     
     // Convert distance from km to miles
     let distanceKm = float(distanceCol[i]);
@@ -345,7 +346,7 @@ function parseData() {
     let paceMins = 0;
     let pace = 0;
     if (activityTypeCol[i] === 'Run' && distance > 0) {
-      let totalMinutes = elapsedHour * 60 + remainingMin;
+      let totalMinutes = elapsedHour * 60 + remainingMin + (remainingSec / 60);
       paceDec = (totalMinutes / parseFloat(distance)).toFixed(2);
       paceMins = floor((totalMinutes / parseFloat(distance)).toFixed(2));
       paceSecs = round((paceDec-paceMins)*60);
@@ -556,6 +557,19 @@ function drawWeeklyPace() {
   }
   // console.log("average month pace: ", minsTemp + ":" + secsTemp);
 
+  // Calculate num monthly miles
+  let totalMonthMiles = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    let dateKey = currentMonth + '/' + day + '/' + currentYear;
+    if (activitiesMap[dateKey]) {
+      activitiesMap[dateKey].forEach(activity => {
+        if (activity.type === 'Run' && !activity.isPrediction) {
+          totalMonthMiles += parseFloat(activity.distance);
+        }
+      });
+    }
+  }
+
   // Draw monthly pace to canvas
   push();
   fill('#4a5238');
@@ -567,7 +581,8 @@ function drawWeeklyPace() {
   textStyle(BOLD);
   text('Avg Monthly Pace:', boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 10);
   textStyle(NORMAL);
-  text(minsTemp + ":" + secsTemp + " min/mile", boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 30);
+  text(minsTemp + ":" + secsTemp + " min/mile", boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 25);
+  text(totalMonthMiles.toFixed(2) + ' total miles', boxX+boxW/2, boxY + numWeeks * (boxH + 45) + 40);
   pop();
 }
 
