@@ -31,6 +31,8 @@ let currentYear = 2025;
 let monthNames = ['May 2025', 'June 2025', 'July 2025', 'August 2025', 'September 2025', 'October 2025', 'November 2025'];
 let monthDropdown;
 
+let showRaceStats = false;
+let raceStatsButton;
 
 function preload() {
   dataTable = loadTable('assets/activities_1107.csv', 'csv', 'header');
@@ -94,6 +96,18 @@ function setupElements() {
     monthDropdown.style('border-radius', '8px');
     monthDropdown.style('cursor', 'pointer');
     monthDropdown.changed(monthChanged);
+
+    // Race stats button
+    raceStatsButton = createButton('🏁 View Race Results');
+    raceStatsButton.position(1200, 45);
+    raceStatsButton.style('font-size', '12px');
+    raceStatsButton.style('padding', '8px 12px');
+    raceStatsButton.style('background-color', '#ff6464');
+    raceStatsButton.style('color', 'white');
+    raceStatsButton.style('border', 'none');
+    raceStatsButton.style('border-radius', '8px');
+    raceStatsButton.style('cursor', 'pointer');
+    raceStatsButton.mousePressed(toggleRaceStats);
 }
 
 function monthChanged() {
@@ -316,7 +330,8 @@ function parseData() {
       timeMin: remainingMin,
       timeHour: elapsedHour,
       distance: distance,
-      pace: pace
+      pace: pace,
+      paceDec: paceDec
     });
   }
   
@@ -368,6 +383,45 @@ function draw() {
 
   // Draw weekly pace stats
   drawWeeklyPace();
+
+  // Draw actual race stats
+  drawRaceStats();
+}
+
+function toggleRaceStats(){
+  showRaceStats = !showRaceStats;
+}
+
+function drawRaceStats() {
+  if (!showRaceStats) return;
+
+  let boxW = 400;
+  let boxH = 175;
+  let boxX = canvasWidth/2 - boxW/2;
+  let boxY = canvasHeight/2 - boxH/2;
+
+  push();
+  fill(0, 0, 0, 150);
+  noStroke();
+  rect(0, 0, width, height);
+
+  fill(255, 100, 100);
+  rect(boxX, boxY, boxW, boxH, 12);
+  
+  fill(255);
+  textAlign(CENTER, TOP);
+  textSize(24);
+  textStyle(BOLD);
+  text('🏁 RACE DAY RESULTS 🏁', boxX + boxW/2, boxY + 20);
+  
+  textAlign(CENTER);
+  textStyle(NORMAL);
+  textSize(18);
+  let offset = 200;
+  text('Date: November 9, 2025', boxX + offset, boxY + 70);
+  text('Total Time: 2:14:59', boxX + offset, boxY + 100);
+  text('Average Pace: 10:18 min/mile', boxX + offset, boxY + 130);
+  pop();
 }
 
 function drawWeeklyPace() {
@@ -410,8 +464,8 @@ function drawWeeklyPace() {
       
       if (activitiesMap[dateKey]) {
         activitiesMap[dateKey].forEach(activity => {
-          if (activity.type === 'Run' && activity.pace) {
-            totalPace += parseFloat(activity.pace);
+          if (activity.type === 'Run' && activity.paceDec) {
+            totalPace += parseFloat(activity.paceDec);
             runCount++;
           }
         });
@@ -446,6 +500,7 @@ function drawWeeklyPace() {
     textSize(12);
     textStyle(BOLD);
     text('Week ' + (week + 1) + ' Avg Pace:', boxX+boxW/2, boxY + week * (boxH + 45) + 10);
+    textStyle(NORMAL);
     text(avgPace + " min/mile", boxX+boxW/2, boxY + week * (boxH + 45) + 30);
     pop();
   }
