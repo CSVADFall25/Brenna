@@ -26,6 +26,12 @@ let scrapbookBgColor;
 let textElements = [];
 let selectedText = null;
 
+// Typing mode variables
+let typingMode = false;
+let currentText = '';
+let typingX = 0;
+let typingY = 0;
+
 // TextElement class
 class TextElement {
   constructor(content, x, y, size, color) {
@@ -113,7 +119,11 @@ function setupToolbarButtons() {
   addTextBtn.style('border', 'none');
   addTextBtn.style('border-radius', '5px');
   addTextBtn.style('cursor', 'pointer');
-  addTextBtn.mousePressed(addText);
+  addTextBtn.mousePressed(() => {
+    typingMode = true;
+    currentText = '';
+    addTextBtn.style('background-color', '#90EE90');
+  });
   
   // Add Image button
   addImageBtn = createButton('Add Image');
@@ -225,38 +235,82 @@ function drawScrapbook() {
     textEl.display();
   }
   
+  // Draw typing cursor and current text
+  if (typingMode) {
+    fill(0);
+    noStroke();
+    textSize(24);
+    textAlign(LEFT, TOP);
+    text(currentText + '|', typingX, typingY);
+    
+    // Draw instruction
+    fill(100);
+    textSize(14);
+    textAlign(CENTER, TOP);
+    text('Click on scrapbook to place text, then type. Press ENTER to finish.', canvasWidth / 2, scrapbookY - 30);
+  }
+  
   pop();
 }
 
-function addText() {
-  let userText = prompt('Enter your text:');
-  if (userText) {
-    // Add text to center of scrapbook
-    let textColor = colorPicker.color();
-    // If color is white or close to white, use black instead
-    if (brightness(textColor) > 90) {
-      textColor = color(0);
+function keyPressed() {
+  if (typingMode) {
+    if (keyCode === ENTER) {
+      // Finish typing and create text element
+      if (currentText.trim() !== '') {
+        let textColor = colorPicker.color();
+        // If color is white or close to white, use black instead
+        if (brightness(textColor) > 90) {
+          textColor = color(0);
+        }
+        let newText = new TextElement(
+          currentText,
+          typingX,
+          typingY,
+          24,
+          textColor
+        );
+        textElements.push(newText);
+      }
+      typingMode = false;
+      currentText = '';
+      addTextBtn.style('background-color', '#ddd');
+    } else if (keyCode === BACKSPACE) {
+      // Remove last character
+      currentText = currentText.slice(0, -1);
+      return false; // Prevent default backspace behavior
+    } else if (keyCode === ESCAPE) {
+      // Cancel typing
+      typingMode = false;
+      currentText = '';
+      addTextBtn.style('background-color', '#ddd');
+    } else if (key.length === 1) {
+      // Add character to current text
+      currentText += key;
     }
-    let newText = new TextElement(
-      userText,
-      scrapbookX + scrapbookWidth / 2 - 50,
-      scrapbookY + scrapbookHeight / 2,
-      24,
-      textColor
-    );
-    textElements.push(newText);
+    return false; // Prevent default key behavior
   }
 }
 
 function mousePressed() {
-  // Check if clicking on a text element
-  for (let i = textElements.length - 1; i >= 0; i--) {
-    if (textElements[i].startDrag()) {
-      selectedText = textElements[i];
-      // Move to front
-      textElements.splice(i, 1);
-      textElements.push(selectedText);
-      break;
+  // If in typing mode, set text position
+  if (typingMode && mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+    typingX = mouseX;
+    typingY = mouseY;
+    return;
+  }
+  
+  // Check if clicking on a text element (only if not in typing mode)
+  if (!typingMode) {
+    for (let i = textElements.length - 1; i >= 0; i--) {
+      if (textElements[i].startDrag()) {
+        selectedText = textElements[i];
+        // Move to front
+        textElements.splice(i, 1);
+        textElements.push(selectedText);
+        break;
+      }
     }
   }
 }
