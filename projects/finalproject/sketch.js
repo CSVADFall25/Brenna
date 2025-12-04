@@ -22,6 +22,63 @@ let scrapbookWidth;
 let scrapbookHeight;
 let scrapbookBgColor;
 
+// Text elements array
+let textElements = [];
+let selectedText = null;
+
+// TextElement class
+class TextElement {
+  constructor(content, x, y, size, color) {
+    this.content = content;
+    this.x = x;
+    this.y = y;
+    this.size = size;
+    this.color = color;
+    this.dragging = false;
+    this.offsetX = 0;
+    this.offsetY = 0;
+  }
+  
+  display() {
+    fill(this.color);
+    noStroke();
+    textSize(this.size);
+    textAlign(LEFT, TOP);
+    text(this.content, this.x, this.y);
+  }
+  
+  isMouseOver() {
+    push();
+    textSize(this.size);
+    let w = textWidth(this.content);
+    pop();
+    let h = this.size;
+    return mouseX >= this.x && mouseX <= this.x + w &&
+           mouseY >= this.y && mouseY <= this.y + h;
+  }
+  
+  startDrag() {
+    if (this.isMouseOver()) {
+      this.dragging = true;
+      this.offsetX = this.x - mouseX;
+      this.offsetY = this.y - mouseY;
+      return true;
+    }
+    return false;
+  }
+  
+  drag() {
+    if (this.dragging) {
+      this.x = mouseX + this.offsetX;
+      this.y = mouseY + this.offsetY;
+    }
+  }
+  
+  stopDrag() {
+    this.dragging = false;
+  }
+}
+
 function setup() {
   canvasWidth = windowWidth;
   canvasHeight = windowHeight;
@@ -56,6 +113,7 @@ function setupToolbarButtons() {
   addTextBtn.style('border', 'none');
   addTextBtn.style('border-radius', '5px');
   addTextBtn.style('cursor', 'pointer');
+  addTextBtn.mousePressed(addText);
   
   // Add Image button
   addImageBtn = createButton('Add Image');
@@ -162,12 +220,56 @@ function drawScrapbook() {
     }
   }
   
-  // Placeholder text
-  fill(150);
-  noStroke();
-  textSize(18);
-  textAlign(CENTER, CENTER);
-  text("Your scrapbook page", canvasWidth / 2, scrapbookY + scrapbookHeight / 2);
-  text("(Tools coming soon!)", canvasWidth / 2, scrapbookY + scrapbookHeight / 2 + 30);
+  // Draw text elements
+  for (let textEl of textElements) {
+    textEl.display();
+  }
+  
   pop();
+}
+
+function addText() {
+  let userText = prompt('Enter your text:');
+  if (userText) {
+    // Add text to center of scrapbook
+    let textColor = colorPicker.color();
+    // If color is white or close to white, use black instead
+    if (brightness(textColor) > 90) {
+      textColor = color(0);
+    }
+    let newText = new TextElement(
+      userText,
+      scrapbookX + scrapbookWidth / 2 - 50,
+      scrapbookY + scrapbookHeight / 2,
+      24,
+      textColor
+    );
+    textElements.push(newText);
+  }
+}
+
+function mousePressed() {
+  // Check if clicking on a text element
+  for (let i = textElements.length - 1; i >= 0; i--) {
+    if (textElements[i].startDrag()) {
+      selectedText = textElements[i];
+      // Move to front
+      textElements.splice(i, 1);
+      textElements.push(selectedText);
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (selectedText) {
+    selectedText.drag();
+  }
+}
+
+function mouseReleased() {
+  if (selectedText) {
+    selectedText.stopDrag();
+    selectedText = null;
+  }
 }
