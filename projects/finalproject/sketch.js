@@ -29,7 +29,7 @@ function setup() {
   
   // Initialize colors
   toolbarBgColor = color(70, 70, 80);
-  scrapbookBgColor = color(245, 240, 230);
+  scrapbookBgColor = 'white';
   
   // Calculate scrapbook dimensions
   scrapbookWidth = 800;
@@ -106,9 +106,12 @@ function setupToolbarButtons() {
   changeBgBtn.style('border', 'none');
   changeBgBtn.style('border-radius', '5px');
   changeBgBtn.style('cursor', 'pointer');
+  changeBgBtn.mousePressed(() => {
+    scrapbookBgColor = colorPicker.color();
+  });
   
   // Color picker
-  colorPicker = createColorPicker('#ff6464');
+  colorPicker = createColorPicker('white');
   colorPicker.position(toolX + toolSpacing * 6 + 50, buttonY);
   colorPicker.size(40, 40);
   colorPicker.style('border', 'none');
