@@ -349,7 +349,7 @@ function setupToolbarButtons() {
   });
   
   // Color picker
-  colorPicker = createColorPicker('white');
+  colorPicker = createColorPicker('#000000');
   colorPicker.position(toolX + toolSpacing * 6 + 50, buttonY);
   colorPicker.size(40, 40);
   colorPicker.style('border', 'none');
@@ -497,7 +497,12 @@ function drawScrapbook() {
   // Draw typing cursor and current text
   if (typingMode) {
     textFont(fontSelector.value());
-    fill(0);
+    let previewColor = colorPicker.color();
+    // If color is white or close to white, use black instead
+    if (brightness(previewColor) > 90) {
+      previewColor = color(0);
+    }
+    fill(previewColor);
     noStroke();
     textSize(24);
     textAlign(LEFT, TOP);
