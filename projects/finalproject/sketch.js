@@ -14,6 +14,7 @@ let drawBtn;
 let stickersBtn;
 let changeBgBtn;
 let colorPicker;
+let fontSelector;
 let imageInput; // hidden file input
 
 // Scrapbook area variables
@@ -41,18 +42,20 @@ let typingY = 0;
 // TextElement class
 // =====================
 class TextElement {
-  constructor(content, x, y, size, color) {
+  constructor(content, x, y, size, color, font) {
     this.content = content;
     this.x = x;
     this.y = y;
     this.size = size;
     this.color = color;
+    this.font = font;
     this.dragging = false;
     this.offsetX = 0;
     this.offsetY = 0;
   }
   
   display() {
+    textFont(this.font);
     fill(this.color);
     noStroke();
     textSize(this.size);
@@ -62,6 +65,7 @@ class TextElement {
   
   isMouseOver() {
     push();
+    textFont(this.font);
     textSize(this.size);
     let w = textWidth(this.content);
     pop();
@@ -287,6 +291,19 @@ function setupToolbarButtons() {
   colorPicker.style('border', 'none');
   colorPicker.style('border-radius', '5px');
   colorPicker.style('cursor', 'pointer');
+  
+  // Font selector
+  fontSelector = createSelect();
+  fontSelector.option('Arial');
+  fontSelector.option('Georgia');
+  fontSelector.option('Courier New');
+  fontSelector.option('Comic Sans MS');
+  fontSelector.option('Times New Roman');
+  fontSelector.option('Verdana');
+  fontSelector.position(toolX + toolSpacing * 6 + 100, buttonY);
+  fontSelector.style('font-size', '14px');
+  fontSelector.style('height', '40px');
+  fontSelector.style('cursor', 'pointer');
 }
 
 // =====================
@@ -369,6 +386,7 @@ function drawScrapbook() {
   
   // Draw typing cursor and current text
   if (typingMode) {
+    textFont(fontSelector.value());
     fill(0);
     noStroke();
     textSize(24);
@@ -376,10 +394,11 @@ function drawScrapbook() {
     text(currentText + '|', typingX, typingY);
     
     // Draw instruction
+    textFont('Arial');
     fill(100);
     textSize(14);
     textAlign(CENTER, TOP);
-    text('Click on scrapbook to place text, then type. Press ENTER to finish.', canvasWidth / 2, scrapbookY - 30);
+    text('Click on scrapbook to place text, then type. Press ENTER to finish. Press ESC to cancel.', canvasWidth / 2, scrapbookY - 30);
   }
   
   pop();
@@ -403,7 +422,8 @@ function keyPressed() {
           typingX,
           typingY,
           24,
-          textColor
+          textColor,
+          fontSelector.value()
         );
         textElements.push(newText);
       }
