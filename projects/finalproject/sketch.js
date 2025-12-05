@@ -43,6 +43,28 @@ let typingY = 0;
 let filterEditMode = false;
 let tempImage = null;
 
+// Sticker library
+let stickerLibrary = [];
+let stickerPositions = []; // Store scattered positions
+let selectedSticker = null; // Currently dragging sticker
+let draggingFromLibrary = false;
+
+// Sticker assets from:
+// <a href="https://www.flaticon.com/free-stickers/cute" title="cute stickers">Cute stickers created by barnstudio - Flaticon</a>
+
+function preload() {
+  // Load all sticker images
+  stickerLibrary = [
+    { name: 'bread', img: loadImage('assets/bread.png') },
+    { name: 'shooting-star', img: loadImage('assets/shooting-star.png') },
+    { name: 'emoticon', img: loadImage('assets/emoticon.png') },
+    { name: 'love', img: loadImage('assets/love.png') },
+    { name: 'lemon', img: loadImage('assets/lemon.png') },
+    { name: 'cat', img: loadImage('assets/cat.png') },
+    { name: 'socks', img: loadImage('assets/socks.png') }
+  ];
+} 
+
 // =====================
 // TextElement class
 // =====================
@@ -105,13 +127,14 @@ class TextElement {
 // ImageElement class
 // =====================
 class ImageElement {
-  constructor(img, x, y, w, h, filter) {
+  constructor(img, x, y, w, h, filter, isSticker = false) {
     this.img = img;
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
     this.filter = filter;
+    this.isSticker = isSticker;
     this.dragging = false;
     this.resizing = false;
     this.offsetX = 0;
@@ -123,12 +146,6 @@ class ImageElement {
     push();
     image(this.img, this.x, this.y, this.w, this.h);
     pop();
-
-    // outline
-    noFill();
-    stroke(100);
-    strokeWeight(1);
-    rect(this.x, this.y, this.w, this.h);
 
     // resize handle (bottom-right corner)
     let hx = this.x + this.w;
@@ -232,8 +249,23 @@ function setup() {
   
   // Create toolbar buttons
   setupToolbarButtons();
+  
+  // Initialize sticker positions
+  let stickerSize = 60;
+  stickerPositions = [
+    { sticker: stickerLibrary[0], x: scrapbookX - 90, y: scrapbookY + 40, size: stickerSize },      // bread
+    { sticker: stickerLibrary[1], x: scrapbookX - 170, y: scrapbookY + 90, size: stickerSize },     // shooting-star
+    { sticker: stickerLibrary[2], x: scrapbookX - 90, y: scrapbookY + 160, size: stickerSize },     // emoticon
+    { sticker: stickerLibrary[3], x: scrapbookX - 170, y: scrapbookY + 230, size: stickerSize },    // love
+    { sticker: stickerLibrary[4], x: scrapbookX - 90, y: scrapbookY + 290, size: stickerSize },     // lemon
+    { sticker: stickerLibrary[5], x: scrapbookX - 170, y: scrapbookY + 390, size: stickerSize },    // cat
+    { sticker: stickerLibrary[6], x: scrapbookX - 90, y: scrapbookY + 450, size: stickerSize }      // socks
+  ];
 }
 
+// =====================
+// Setup Toolbar
+// =====================
 function setupToolbarButtons() {
   let toolX = 250;
   let toolSpacing = 120;
@@ -435,6 +467,14 @@ function drawScrapbook() {
     textEl.display();
   }
   
+  // Draw stickers on the sides
+  drawStickers();
+  
+  // Draw dragging sticker preview
+  if (selectedSticker) {
+    selectedSticker.display();
+  }
+  
   // Draw temp image with live filter preview
   if (filterEditMode && tempImage) {
     // Create temp copy for preview
@@ -469,6 +509,21 @@ function drawScrapbook() {
     textSize(14);
     textAlign(CENTER, TOP);
     text('Click on scrapbook to place text, then type. Press ENTER to finish. Press ESC to cancel.', canvasWidth / 2, scrapbookY - 30);
+  }
+  
+  pop();
+}
+
+// =====================
+// Draw Stickers
+// =====================
+function drawStickers() {
+  push();
+  imageMode(CENTER);
+  
+  for (let stickerPos of stickerPositions) {
+    // Draw sticker
+    image(stickerPos.sticker.img, stickerPos.x, stickerPos.y, stickerPos.size, stickerPos.size);
   }
   
   pop();
@@ -549,6 +604,25 @@ function mousePressed() {
     return;
   }
   
+  // Check if clicking on a sticker in the library
+  if (!typingMode) {
+    for (let i = 0; i < stickerPositions.length; i++) {
+      let sp = stickerPositions[i];
+      let halfSize = sp.size / 2;
+      if (mouseX >= sp.x - halfSize && mouseX <= sp.x + halfSize &&
+          mouseY >= sp.y - halfSize && mouseY <= sp.y + halfSize) {
+        // Create a new image element from the sticker
+        draggingFromLibrary = true;
+        let stickerCopy = sp.sticker.img.get();
+        selectedSticker = new ImageElement(stickerCopy, mouseX, mouseY, sp.size, sp.size, 'None', true);
+        selectedSticker.dragging = true;
+        selectedSticker.offsetX = 0;
+        selectedSticker.offsetY = 0;
+        return;
+      }
+    }
+  }
+  
   if (!typingMode) {
     for (let i = imageElements.length - 1; i >= 0; i--) {
       let imgEl = imageElements[i];
@@ -573,7 +647,9 @@ function mousePressed() {
 }
 
 function mouseDragged() {
-  if (selectedImage) {
+  if (selectedSticker) {
+    selectedSticker.drag();
+  } else if (selectedImage) {
     if (selectedImage.resizing) {
       selectedImage.resize();
     } else {
@@ -585,6 +661,17 @@ function mouseDragged() {
 }
 
 function mouseReleased() {
+  if (selectedSticker) {
+    selectedSticker.stopInteraction();
+    // Add to imageElements if dropped on scrapbook
+    if (mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+        mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+      selectedSticker.isSticker = false;
+      imageElements.push(selectedSticker);
+    }
+    selectedSticker = null;
+    draggingFromLibrary = false;
+  }
   if (selectedImage) {
     selectedImage.stopInteraction();
     selectedImage = null;
