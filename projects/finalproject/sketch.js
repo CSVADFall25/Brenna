@@ -5,7 +5,7 @@ let canvasWidth;
 let canvasHeight;
 
 // Toolbar variables
-let toolbarHeight = 80;
+let toolbarHeight = 135;
 let toolbarBgColor;
 let addTextBtn;
 let addImageBtn;
@@ -15,6 +15,7 @@ let stickersBtn;
 let changeBgBtn;
 let colorPicker;
 let fontSelector;
+let imageFilterSelector;
 let imageInput; // hidden file input
 
 // Scrapbook area variables
@@ -37,6 +38,10 @@ let typingMode = false;
 let currentText = '';
 let typingX = 0;
 let typingY = 0;
+
+// Image filter editing mode
+let filterEditMode = false;
+let tempImage = null;
 
 // =====================
 // TextElement class
@@ -100,12 +105,13 @@ class TextElement {
 // ImageElement class
 // =====================
 class ImageElement {
-  constructor(img, x, y, w, h) {
+  constructor(img, x, y, w, h, filter) {
     this.img = img;
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
+    this.filter = filter;
     this.dragging = false;
     this.resizing = false;
     this.offsetX = 0;
@@ -114,7 +120,9 @@ class ImageElement {
   }
 
   display() {
+    push();
     image(this.img, this.x, this.y, this.w, this.h);
+    pop();
 
     // outline
     noFill();
@@ -177,6 +185,27 @@ class ImageElement {
     this.dragging = false;
     this.resizing = false;
   }
+  
+  applyFilter(filterType) {
+    this.filter = filterType;
+    if (filterType === 'No Filter') return;
+    
+    // Create a copy and apply filter
+    let filtered = this.img.get();
+    filtered.loadPixels();
+    
+    if (filterType === 'Gray') {
+      filtered.filter(GRAY);
+    } else if (filterType === 'Invert') {
+      filtered.filter(INVERT);
+    } else if (filterType === 'Threshold') {
+      filtered.filter(THRESHOLD);
+    } else if (filterType === 'Posterize') {
+      filtered.filter(POSTERIZE, 4);
+    }
+    
+    this.img = filtered;
+  }
 }
 
 // =====================
@@ -192,10 +221,10 @@ function setup() {
   scrapbookBgColor = 'white';
   
   // Calculate scrapbook dimensions
-  scrapbookWidth = 800;
-  scrapbookHeight = 600;
+  scrapbookWidth = 900;
+  scrapbookHeight = 500;
   scrapbookX = (canvasWidth - scrapbookWidth) / 2;
-  scrapbookY = toolbarHeight + 40;
+  scrapbookY = toolbarHeight + 60;
   
   // Hidden file input for images
   imageInput = createFileInput(handleImageFile);
@@ -221,6 +250,7 @@ function setupToolbarButtons() {
   addTextBtn.style('border-radius', '5px');
   addTextBtn.style('cursor', 'pointer');
   addTextBtn.mousePressed(() => {
+    if (filterEditMode) return; // Don't allow if editing image
     typingMode = true;
     currentText = '';
     addTextBtn.style('background-color', '#90EE90');
@@ -236,8 +266,10 @@ function setupToolbarButtons() {
   addImageBtn.style('border-radius', '5px');
   addImageBtn.style('cursor', 'pointer');
   addImageBtn.mousePressed(() => {
-    // trigger hidden file input
-    imageInput.elt.value = ''; // clear previous selection
+    if (typingMode) return; // Don't allow if editing text
+    filterEditMode = true;
+    addImageBtn.style('background-color', '#90EE90');
+    imageInput.elt.value = '';
     imageInput.elt.click();
   });
   
@@ -292,7 +324,7 @@ function setupToolbarButtons() {
   colorPicker.style('border-radius', '5px');
   colorPicker.style('cursor', 'pointer');
   
-  // Font selector
+  // Font selector (under text button)
   fontSelector = createSelect();
   fontSelector.option('Arial');
   fontSelector.option('Georgia');
@@ -300,10 +332,24 @@ function setupToolbarButtons() {
   fontSelector.option('Comic Sans MS');
   fontSelector.option('Times New Roman');
   fontSelector.option('Verdana');
-  fontSelector.position(toolX + toolSpacing * 6 + 100, buttonY);
-  fontSelector.style('font-size', '14px');
-  fontSelector.style('height', '40px');
+  fontSelector.position(toolX, buttonY + 60);
+  fontSelector.style('font-size', '12px');
+  fontSelector.style('height', '35px');
+  fontSelector.style('width', '100px');
   fontSelector.style('cursor', 'pointer');
+  
+  // Image filter selector (under image button)
+  imageFilterSelector = createSelect();
+  imageFilterSelector.option('None');
+  imageFilterSelector.option('Gray');
+  imageFilterSelector.option('Invert');
+  imageFilterSelector.option('Threshold');
+  imageFilterSelector.option('Posterize');
+  imageFilterSelector.position(toolX + toolSpacing, buttonY + 60);
+  imageFilterSelector.style('font-size', '12px');
+  imageFilterSelector.style('height', '35px');
+  imageFilterSelector.style('width', '100px');
+  imageFilterSelector.style('cursor', 'pointer');
 }
 
 // =====================
@@ -322,8 +368,13 @@ function handleImageFile(file) {
       let x = scrapbookX + (scrapbookWidth - w) / 2;
       let y = scrapbookY + (scrapbookHeight - h) / 2;
 
-      let newImgEl = new ImageElement(img, x, y, w, h);
-      imageElements.push(newImgEl);
+      tempImage = new ImageElement(img, x, y, w, h, 'None');
+      if (filterEditMode) {
+        tempImage.applyFilter(imageFilterSelector.value());
+      } else {
+        imageElements.push(tempImage);
+        tempImage = null;
+      }
     });
   }
 }
@@ -384,6 +435,25 @@ function drawScrapbook() {
     textEl.display();
   }
   
+  // Draw temp image with live filter preview
+  if (filterEditMode && tempImage) {
+    // Create temp copy for preview
+    let preview = new ImageElement(tempImage.img.get(), tempImage.x, tempImage.y, tempImage.w, tempImage.h, 'None');
+    preview.applyFilter(imageFilterSelector.value());
+    preview.display();
+    
+    // Draw instruction
+    push();
+    textFont('Arial');
+    textStyle(NORMAL);
+    fill(100);
+    noStroke();
+    textSize(14);
+    textAlign(CENTER, TOP);
+    text('Change filter in dropdown. Press ENTER to confirm. Press ESC to cancel.', canvasWidth / 2, scrapbookY - 30);
+    pop();
+  }
+  
   // Draw typing cursor and current text
   if (typingMode) {
     textFont(fontSelector.value());
@@ -408,6 +478,25 @@ function drawScrapbook() {
 // Keyboard
 // =====================
 function keyPressed() {
+  if (filterEditMode) {
+    if (keyCode === ENTER) {
+      // Finalize image with selected filter
+      if (tempImage) {
+        tempImage.applyFilter(imageFilterSelector.value());
+        imageElements.push(tempImage);
+        tempImage = null;
+      }
+      filterEditMode = false;
+      addImageBtn.style('background-color', '#ddd');
+    } else if (keyCode === ESCAPE) {
+      // Cancel filter edit
+      filterEditMode = false;
+      tempImage = null;
+      addImageBtn.style('background-color', '#ddd');
+    }
+    return false;
+  }
+  
   if (typingMode) {
     if (keyCode === ENTER) {
       // Finish typing and create text element
@@ -450,6 +539,9 @@ function keyPressed() {
 // Mouse interactions
 // =====================
 function mousePressed() {
+  // Don't allow interactions if in editing mode
+  if (filterEditMode) return;
+  
   if (typingMode && mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
     typingX = mouseX;
