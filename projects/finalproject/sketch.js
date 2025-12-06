@@ -17,6 +17,7 @@ let colorPicker;
 let fontSelector;
 let imageFilterSelector;
 let imageInput; // hidden file input
+let shapeTypeSelector; // dropdown for shape type
 
 // Scrapbook area variables
 let scrapbookX;
@@ -32,6 +33,12 @@ let selectedText = null;
 // Image elements array
 let imageElements = [];
 let selectedImage = null;
+
+// Shape elements
+let shapeElements = [];
+let selectedShape = null;
+let shapeMode = false;
+let shapeFillSelector;
 
 // Typing mode variables
 let typingMode = false;
@@ -139,18 +146,16 @@ class ImageElement {
     this.resizing = false;
     this.offsetX = 0;
     this.offsetY = 0;
-    this.handleSize = 14;
+    this.handleSize = 50;
   }
 
   display() {
     push();
     image(this.img, this.x, this.y, this.w, this.h);
     pop();
-
-    // resize handle (bottom-right corner)
-    let hx = this.x + this.w;
-    let hy = this.y + this.h;
+    // no visible resize handle, just the invisible hitbox
   }
+  
 
   isMouseOver() {
     return mouseX >= this.x && mouseX <= this.x + this.w &&
@@ -222,6 +227,151 @@ class ImageElement {
     }
     
     this.img = filtered;
+  }
+}
+
+// =====================
+// ShapeElement class
+// =====================
+class ShapeElement {
+  constructor(x, y, w, h, color, type = 'rectangle', filled = true) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.color = color;
+    this.type = type; // 'rectangle', 'square', 'circle', 'ellipse', 'triangle', 'star'
+    this.filled = filled; 
+    this.dragging = false;
+    this.resizing = false;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.handleSize = 40;
+  }
+
+  display() {
+    push();
+    if (this.filled) {
+      fill(this.color);
+      noStroke();
+    } else {
+      noFill();
+      stroke(this.color);
+      strokeWeight(4);
+    }
+
+    let cx = this.x + this.w / 2;
+    let cy = this.y + this.h / 2;
+    let size = min(this.w, this.h);
+
+    switch (this.type) {
+      case 'rectangle':
+        rect(this.x, this.y, this.w, this.h);
+        break;
+      case 'square': {
+        let s = size;
+        rect(cx - s / 2, cy - s / 2, s, s);
+        break;
+      }
+      case 'circle': {
+        let d = size;
+        ellipse(cx, cy, d, d);
+        break;
+      }
+      case 'ellipse':
+        ellipse(cx, cy, this.w, this.h);
+        break;
+      case 'triangle': {
+        let bottomY = this.y + this.h;
+        triangle(
+          cx, this.y,                 // top
+          this.x, bottomY,            // bottom left
+          this.x + this.w, bottomY    // bottom right
+        );
+        break;
+      }
+      case 'star': {
+        let outerR = size / 2;
+        let innerR = outerR * 0.5;
+        this.drawStar(cx, cy, outerR, innerR, 5);
+        break;
+      }
+    }
+
+    pop();
+
+    // show resize handle on hover
+  }
+
+  drawStar(cx, cy, outerRadius, innerRadius, numPoints) {
+    push();
+    beginShape();
+    let angleStep = TWO_PI / (numPoints * 2);
+    for (let i = 0; i < numPoints * 2; i++) {
+      let r = (i % 2 === 0) ? outerRadius : innerRadius;
+      let angle = i * angleStep - HALF_PI;
+      let sx = cx + cos(angle) * r;
+      let sy = cy + sin(angle) * r;
+      vertex(sx, sy);
+    }
+    endShape(CLOSE);
+    pop();
+  }
+
+  isMouseOver() {
+    return mouseX >= this.x && mouseX <= this.x + this.w &&
+           mouseY >= this.y && mouseY <= this.y + this.h;
+  }
+
+  isOverResizeHandle() {
+    let hx = this.x + this.w;
+    let hy = this.y + this.h;
+    return mouseX >= hx - this.handleSize && mouseX <= hx &&
+           mouseY >= hy - this.handleSize && mouseY <= hy;
+  }
+
+  startDrag() {
+    if (this.isMouseOver() && !this.isOverResizeHandle()) {
+      this.dragging = true;
+      this.offsetX = this.x - mouseX;
+      this.offsetY = this.y - mouseY;
+      return true;
+    }
+    return false;
+  }
+
+  startResize() {
+    if (this.isOverResizeHandle()) {
+      this.resizing = true;
+      return true;
+    }
+    return false;
+  }
+
+  drag() {
+    if (this.dragging) {
+      this.x = mouseX + this.offsetX;
+      this.y = mouseY + this.offsetY;
+    }
+  }
+
+  resize() {
+    if (this.resizing) {
+      this.w = max(20, mouseX - this.x);
+      this.h = max(20, mouseY - this.y);
+
+      // keep shapes proportional where it matters
+      if (this.type === 'square' || this.type === 'circle' || this.type === 'star') {
+        let s = min(this.w, this.h);
+        this.w = s;
+        this.h = s;
+      }
+    }
+  }
+
+  stopInteraction() {
+    this.dragging = false;
+    this.resizing = false;
   }
 }
 
@@ -314,6 +464,11 @@ function setupToolbarButtons() {
   addShapeBtn.style('border', 'none');
   addShapeBtn.style('border-radius', '5px');
   addShapeBtn.style('cursor', 'pointer');
+  addShapeBtn.mousePressed(() => {
+    if (typingMode || filterEditMode) return;
+    shapeMode = !shapeMode;
+    addShapeBtn.style('background-color', shapeMode ? '#90EE90' : '#ddd');
+  });
   
   // Draw button
   drawBtn = createButton('Draw');
@@ -345,7 +500,12 @@ function setupToolbarButtons() {
   changeBgBtn.style('border-radius', '5px');
   changeBgBtn.style('cursor', 'pointer');
   changeBgBtn.mousePressed(() => {
-    scrapbookBgColor = colorPicker.color();
+    let chosenColor = colorPicker.color();
+    if (selectedShape) {
+      selectedShape.color = chosenColor;
+    } else {
+      scrapbookBgColor = chosenColor;
+    }
   });
   
   // Color picker
@@ -382,6 +542,30 @@ function setupToolbarButtons() {
   imageFilterSelector.style('height', '35px');
   imageFilterSelector.style('width', '100px');
   imageFilterSelector.style('cursor', 'pointer');
+
+  // Shape type selector (under Add Shape)
+  shapeTypeSelector = createSelect();
+  shapeTypeSelector.option('Rectangle');
+  shapeTypeSelector.option('Square');
+  shapeTypeSelector.option('Circle');
+  shapeTypeSelector.option('Ellipse');
+  shapeTypeSelector.option('Triangle');
+  shapeTypeSelector.option('Star');
+  shapeTypeSelector.position(toolX + toolSpacing * 2, buttonY + 60);
+  shapeTypeSelector.style('font-size', '12px');
+  shapeTypeSelector.style('height', '35px');
+  shapeTypeSelector.style('width', '100px');
+  shapeTypeSelector.style('cursor', 'pointer');
+
+  shapeFillSelector = createSelect();
+  shapeFillSelector.option('Fill');
+  shapeFillSelector.option('Outline');
+  shapeFillSelector.position(toolX + toolSpacing * 2, buttonY + 90); // ⬇ stacked below
+  shapeFillSelector.style('font-size', '12px');
+  shapeFillSelector.style('height', '35px');
+  shapeFillSelector.style('width', '100px');
+  shapeFillSelector.style('cursor', 'pointer');
+  
 }
 
 // =====================
@@ -457,9 +641,14 @@ function drawScrapbook() {
     }
   }
 
-  // Draw images first so text can sit on top if you want
+  // Draw images first
   for (let imgEl of imageElements) {
     imgEl.display();
+  }
+
+  // Draw shapes above images, below text
+  for (let shapeEl of shapeElements) {
+    shapeEl.display();
   }
   
   // Draw text elements
@@ -477,12 +666,10 @@ function drawScrapbook() {
   
   // Draw temp image with live filter preview
   if (filterEditMode && tempImage) {
-    // Create temp copy for preview
     let preview = new ImageElement(tempImage.img.get(), tempImage.x, tempImage.y, tempImage.w, tempImage.h, 'None');
     preview.applyFilter(imageFilterSelector.value());
     preview.display();
     
-    // Draw instruction
     push();
     textFont('Arial');
     textStyle(NORMAL);
@@ -498,7 +685,6 @@ function drawScrapbook() {
   if (typingMode) {
     textFont(fontSelector.value());
     let previewColor = colorPicker.color();
-    // If color is white or close to white, use black instead
     if (brightness(previewColor) > 90) {
       previewColor = color(0);
     }
@@ -508,7 +694,6 @@ function drawScrapbook() {
     textAlign(LEFT, TOP);
     text(currentText + '|', typingX, typingY);
     
-    // Draw instruction
     textFont('Arial');
     fill(100);
     textSize(14);
@@ -527,7 +712,6 @@ function drawStickers() {
   imageMode(CENTER);
   
   for (let stickerPos of stickerPositions) {
-    // Draw sticker
     image(stickerPos.sticker.img, stickerPos.x, stickerPos.y, stickerPos.size, stickerPos.size);
   }
   
@@ -541,7 +725,6 @@ function keyPressed() {
   // === 1) Image filter edit mode ===
   if (filterEditMode) {
     if (keyCode === ENTER) {
-      // Finalize image with selected filter
       if (tempImage) {
         tempImage.applyFilter(imageFilterSelector.value());
         imageElements.push(tempImage);
@@ -550,7 +733,6 @@ function keyPressed() {
       filterEditMode = false;
       addImageBtn.style('background-color', '#ddd');
     } else if (keyCode === ESCAPE) {
-      // Cancel filter edit
       filterEditMode = false;
       tempImage = null;
       addImageBtn.style('background-color', '#ddd');
@@ -559,17 +741,24 @@ function keyPressed() {
   }
 
   // === 2) Delete stuff when NOT typing ===
-  // Hover over an item and press Delete or Backspace
   if (!typingMode && (keyCode === DELETE || keyCode === BACKSPACE)) {
     // Try deleting an image (includes dropped stickers)
     for (let i = imageElements.length - 1; i >= 0; i--) {
       if (imageElements[i].isMouseOver()) {
         imageElements.splice(i, 1);
-        return false; // stop after deleting topmost hit
+        return false;
       }
     }
 
-    // If no image was deleted, try deleting text
+    // Try deleting a shape
+    for (let i = shapeElements.length - 1; i >= 0; i--) {
+      if (shapeElements[i].isMouseOver()) {
+        shapeElements.splice(i, 1);
+        return false;
+      }
+    }
+
+    // Try deleting text
     for (let i = textElements.length - 1; i >= 0; i--) {
       if (textElements[i].isMouseOver()) {
         textElements.splice(i, 1);
@@ -577,16 +766,14 @@ function keyPressed() {
       }
     }
 
-    return false; // prevent browser back navigation on Backspace
+    return false; // prevent browser back navigation
   }
 
   // === 3) Typing mode behavior ===
   if (typingMode) {
     if (keyCode === ENTER) {
-      // Finish typing and create text element
       if (currentText.trim() !== '') {
         let textColor = colorPicker.color();
-        // If color is white or close to white, use black instead
         if (brightness(textColor) > 90) {
           textColor = color(0);
         }
@@ -604,7 +791,6 @@ function keyPressed() {
       currentText = '';
       addTextBtn.style('background-color', '#ddd');
     } else if (keyCode === BACKSPACE) {
-      // Remove last character
       currentText = currentText.slice(0, -1);
       return false;
     } else if (keyCode === ESCAPE) {
@@ -612,19 +798,56 @@ function keyPressed() {
       currentText = '';
       addTextBtn.style('background-color', '#ddd');
     } else if (key.length === 1) {
-      // Add character to current text
       currentText += key;
     }
-    return false; // Prevent default key behavior
+    return false;
   }
 }
-
 
 // =====================
 // Mouse interactions
 // =====================
 function mousePressed() {
   if (filterEditMode) return;
+  
+  // Place shape if in shapeMode and click in scrapbook
+  // Place shape if in shapeMode and click in scrapbook
+  if (shapeMode &&
+      mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+
+    let shapeColor = colorPicker.color();  // always use picker color exactly
+
+    let defaultW = 150;
+    let defaultH = 100;
+    let typeLabel = shapeTypeSelector.value(); // "Rectangle"
+    let type = typeLabel.toLowerCase();        // "rectangle"
+
+    if (type === 'square' || type === 'circle' || type === 'star') {
+      defaultH = defaultW;
+    }
+
+    // 🔹 filled or outline?
+    let fillChoice = shapeFillSelector.value(); // "Fill" or "Outline"
+    let filled = (fillChoice === 'Fill');
+
+    let newShape = new ShapeElement(
+      mouseX - defaultW / 2,
+      mouseY - defaultH / 2,
+      defaultW,
+      defaultH,
+      shapeColor,
+      type,
+      filled
+    );
+
+    shapeElements.push(newShape);
+
+    shapeMode = false;
+    addShapeBtn.style('background-color', '#ddd');
+    return;
+  }
+
   
   if (typingMode && mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
@@ -634,6 +857,7 @@ function mousePressed() {
   }
   
   if (!typingMode) {
+    // Start dragging sticker from sidebar
     for (let i = 0; i < stickerPositions.length; i++) {
       let sp = stickerPositions[i];
       let halfSize = sp.size / 2;
@@ -651,6 +875,18 @@ function mousePressed() {
   }
   
   if (!typingMode) {
+    // First: check shapes (so they sit above images)
+    for (let i = shapeElements.length - 1; i >= 0; i--) {
+      let shapeEl = shapeElements[i];
+      if (shapeEl.startResize() || shapeEl.startDrag()) {
+        selectedShape = shapeEl;
+        shapeElements.splice(i, 1);
+        shapeElements.push(shapeEl);
+        return;
+      }
+    }
+
+    // Then check images
     for (let i = imageElements.length - 1; i >= 0; i--) {
       let imgEl = imageElements[i];
       if (imgEl.startResize() || imgEl.startDrag()) {
@@ -661,16 +897,26 @@ function mousePressed() {
       }
     }
 
+    // Finally text
     for (let i = textElements.length - 1; i >= 0; i--) {
       if (textElements[i].startDrag()) {
         selectedText = textElements[i];
-        // Move to front
         textElements.splice(i, 1);
         textElements.push(selectedText);
         break;
       }
     }
   }
+
+    // Click empty scrapbook area to deselect shape
+  if (!typingMode &&
+      mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+
+    // if we got here, no shape/image/text was grabbed (those return earlier)
+    selectedShape = null;
+  }
+
 }
 
 function mouseDragged() {
@@ -681,6 +927,12 @@ function mouseDragged() {
       selectedImage.resize();
     } else {
       selectedImage.drag();
+    }
+  } else if (selectedShape) {
+    if (selectedShape.resizing) {
+      selectedShape.resize();
+    } else {
+      selectedShape.drag();
     }
   } else if (selectedText) {
     selectedText.drag();
@@ -702,6 +954,9 @@ function mouseReleased() {
   if (selectedImage) {
     selectedImage.stopInteraction();
     selectedImage = null;
+  }
+  if (selectedShape) {
+    selectedShape.stopInteraction();
   }
   if (selectedText) {
     selectedText.stopDrag();
