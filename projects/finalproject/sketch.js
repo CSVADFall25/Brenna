@@ -538,6 +538,7 @@ function drawStickers() {
 // Keyboard
 // =====================
 function keyPressed() {
+  // === 1) Image filter edit mode ===
   if (filterEditMode) {
     if (keyCode === ENTER) {
       // Finalize image with selected filter
@@ -556,7 +557,30 @@ function keyPressed() {
     }
     return false;
   }
-  
+
+  // === 2) Delete stuff when NOT typing ===
+  // Hover over an item and press Delete or Backspace
+  if (!typingMode && (keyCode === DELETE || keyCode === BACKSPACE)) {
+    // Try deleting an image (includes dropped stickers)
+    for (let i = imageElements.length - 1; i >= 0; i--) {
+      if (imageElements[i].isMouseOver()) {
+        imageElements.splice(i, 1);
+        return false; // stop after deleting topmost hit
+      }
+    }
+
+    // If no image was deleted, try deleting text
+    for (let i = textElements.length - 1; i >= 0; i--) {
+      if (textElements[i].isMouseOver()) {
+        textElements.splice(i, 1);
+        return false;
+      }
+    }
+
+    return false; // prevent browser back navigation on Backspace
+  }
+
+  // === 3) Typing mode behavior ===
   if (typingMode) {
     if (keyCode === ENTER) {
       // Finish typing and create text element
@@ -595,11 +619,11 @@ function keyPressed() {
   }
 }
 
+
 // =====================
 // Mouse interactions
 // =====================
 function mousePressed() {
-  // Don't allow interactions if in editing mode
   if (filterEditMode) return;
   
   if (typingMode && mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
@@ -609,14 +633,12 @@ function mousePressed() {
     return;
   }
   
-  // Check if clicking on a sticker in the library
   if (!typingMode) {
     for (let i = 0; i < stickerPositions.length; i++) {
       let sp = stickerPositions[i];
       let halfSize = sp.size / 2;
       if (mouseX >= sp.x - halfSize && mouseX <= sp.x + halfSize &&
           mouseY >= sp.y - halfSize && mouseY <= sp.y + halfSize) {
-        // Create a new image element from the sticker
         draggingFromLibrary = true;
         let stickerCopy = sp.sticker.img.get();
         selectedSticker = new ImageElement(stickerCopy, mouseX, mouseY, sp.size, sp.size, 'None', true);
