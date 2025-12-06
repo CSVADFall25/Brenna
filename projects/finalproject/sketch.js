@@ -13,6 +13,7 @@ let addShapeBtn;
 let drawBtn;
 let stickersBtn;
 let changeBgBtn;
+let toggleGridBtn;
 let exportBtn;
 let colorPicker;
 let fontSelector;
@@ -518,6 +519,21 @@ function setupToolbarButtons() {
   colorPicker.style('border-radius', '5px');
   colorPicker.style('cursor', 'pointer');
   
+  // Toggle Grid button
+  toggleGridBtn = createButton('Hide Grid');
+  toggleGridBtn.position(windowWidth - 200, windowHeight - 150);
+  toggleGridBtn.size(140, 40);
+  toggleGridBtn.style('font-size', '14px');
+  toggleGridBtn.style('background-color', 'rgb(70, 70, 80)');
+  toggleGridBtn.style('color', 'white');
+  toggleGridBtn.style('border', 'none');
+  toggleGridBtn.style('border-radius', '5px');
+  toggleGridBtn.style('cursor', 'pointer');
+  toggleGridBtn.mousePressed(() => {
+    showGrid = !showGrid;
+    toggleGridBtn.html(showGrid ? 'Hide Grid' : 'Show Grid');
+  });
+  
   // Export button
   exportBtn = createButton('Export Scrapbook');
   exportBtn.position(windowWidth - 200, windowHeight - 100);
@@ -593,7 +609,6 @@ function exportScrapbook() {
 
   let scrapbookImage = get(scrapbookX, scrapbookY, scrapbookWidth, scrapbookHeight);
   save(scrapbookImage, 'my-scrapbook.png');
-  showGrid = true;
 }
 
 // =====================
