@@ -5,7 +5,7 @@ let canvasWidth;
 let canvasHeight;
 
 // Toolbar variables
-let toolbarHeight = 135;
+let toolbarHeight = 160;
 let toolbarBgColor;
 let addTextBtn;
 let addImageBtn;
@@ -13,6 +13,7 @@ let addShapeBtn;
 let drawBtn;
 let stickersBtn;
 let changeBgBtn;
+let exportBtn;
 let colorPicker;
 let fontSelector;
 let imageFilterSelector;
@@ -25,6 +26,7 @@ let scrapbookY;
 let scrapbookWidth;
 let scrapbookHeight;
 let scrapbookBgColor;
+let showGrid = true;
 
 // Text elements array
 let textElements = [];
@@ -516,6 +518,19 @@ function setupToolbarButtons() {
   colorPicker.style('border-radius', '5px');
   colorPicker.style('cursor', 'pointer');
   
+  // Export button
+  exportBtn = createButton('Export Scrapbook');
+  exportBtn.position(windowWidth - 200, windowHeight - 100);
+  exportBtn.size(140, 40);
+  exportBtn.style('font-size', '14px');
+  exportBtn.style('background-color', '#87CEEB');
+  exportBtn.style('border', 'none');
+  exportBtn.style('border-radius', '5px');
+  exportBtn.style('cursor', 'pointer');
+  exportBtn.mousePressed(() => {
+    exportScrapbook();
+  });
+  
   // Font selector (under text button)
   fontSelector = createSelect();
   fontSelector.option('Arial');
@@ -566,6 +581,19 @@ function setupToolbarButtons() {
   shapeFillSelector.style('width', '100px');
   shapeFillSelector.style('cursor', 'pointer');
   
+}
+
+// =====================
+// Export Scrapbook
+// =====================
+function exportScrapbook() {
+  // Hide grid temporarily
+  showGrid = false;
+  redraw();
+
+  let scrapbookImage = get(scrapbookX, scrapbookY, scrapbookWidth, scrapbookHeight);
+  save(scrapbookImage, 'my-scrapbook.png');
+  showGrid = true;
 }
 
 // =====================
@@ -632,12 +660,14 @@ function drawScrapbook() {
   rect(scrapbookX, scrapbookY, scrapbookWidth, scrapbookHeight);
   
   // Dot grid
-  stroke(180, 180, 180);
-  strokeWeight(3);
-  let gridSpacing = 50;
-  for (let x = scrapbookX; x <= scrapbookX + scrapbookWidth; x += gridSpacing) {
-    for (let y = scrapbookY; y <= scrapbookY + scrapbookHeight; y += gridSpacing) {
-      point(x, y);
+  if (showGrid) {
+    stroke(180, 180, 180);
+    strokeWeight(3);
+    let gridSpacing = 50;
+    for (let x = scrapbookX; x <= scrapbookX + scrapbookWidth; x += gridSpacing) {
+      for (let y = scrapbookY; y <= scrapbookY + scrapbookHeight; y += gridSpacing) {
+        point(x, y);
+      }
     }
   }
 
