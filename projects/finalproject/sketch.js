@@ -20,6 +20,12 @@ let fontSelector;
 let imageFilterSelector;
 let imageInput; // hidden file input
 let shapeTypeSelector; // dropdown for shape type
+let drawingLayer;      // p5.Graphics for all doodles
+let drawMode = false;  // are we in drawing mode?
+let eraserMode = false;
+let thicknessSlider;
+let eraserBtn;
+let clearDrawBtn;
 
 // Scrapbook area variables
 let scrapbookX;
@@ -395,6 +401,10 @@ function setup() {
   scrapbookHeight = 500;
   scrapbookX = (canvasWidth - scrapbookWidth) / 2;
   scrapbookY = toolbarHeight + 60;
+
+  // Layer for freehand drawing
+  drawingLayer = createGraphics(scrapbookWidth, scrapbookHeight);
+  drawingLayer.clear();  // transparent start
   
   // Hidden file input for images
   imageInput = createFileInput(handleImageFile);
@@ -482,6 +492,50 @@ function setupToolbarButtons() {
   drawBtn.style('border', 'none');
   drawBtn.style('border-radius', '5px');
   drawBtn.style('cursor', 'pointer');
+  drawBtn.mousePressed(() => {
+    if (typingMode || filterEditMode || shapeMode) return;
+    drawMode = !drawMode;
+    eraserMode = false;
+    drawBtn.style('background-color', drawMode ? '#90EE90' : '#ddd');
+    eraserBtn.style('background-color', '#ddd');
+    cursor(drawMode ? 'crosshair' : 'default');
+  });
+
+  // Eraser toggle (only useful in draw mode)
+  eraserBtn = createButton('Eraser');
+  eraserBtn.position(toolX + toolSpacing * 3, buttonY + 60);
+  eraserBtn.size(buttonWidth, 25);
+  eraserBtn.style('font-size', '11px');
+  eraserBtn.style('background-color', '#ddd');
+  eraserBtn.style('border', 'none');
+  eraserBtn.style('border-radius', '5px');
+  eraserBtn.style('cursor', 'pointer');
+  eraserBtn.mousePressed(() => {
+    if (!drawMode) return;        // only works when drawing is on
+    eraserMode = !eraserMode;
+    eraserBtn.style('background-color', eraserMode ? '#FFB6C1' : '#ddd');
+  });
+
+  // Clear drawing layer button
+  clearDrawBtn = createButton('Clear Drawings');
+  clearDrawBtn.position(toolX + toolSpacing * 3, buttonY + 95);
+  clearDrawBtn.size(100, 25);
+  clearDrawBtn.style('font-size', '11px');
+  clearDrawBtn.style('background-color', '#ddd');
+  clearDrawBtn.style('border', 'none');
+  clearDrawBtn.style('border-radius', '5px');
+  clearDrawBtn.style('cursor', 'pointer');
+  clearDrawBtn.mousePressed(() => {
+    drawingLayer.clear();   
+  });
+  
+
+  // Brush thickness slider
+  thicknessSlider = createSlider(1, 40, 8);  // min, max, default
+  thicknessSlider.position(toolX + toolSpacing * 3, buttonY + 123);
+  thicknessSlider.style('width', '100px');
+
+  
   
   // Stickers button
   stickersBtn = createButton('Stickers');
@@ -745,6 +799,9 @@ function drawScrapbook() {
     textAlign(CENTER, TOP);
     text('Click on scrapbook to place text, then type. Press ENTER to finish. Press ESC to cancel.', canvasWidth / 2, scrapbookY - 30);
   }
+
+  // After grid, draw freehand doodles
+  image(drawingLayer, scrapbookX, scrapbookY);
   
   pop();
 }
@@ -854,6 +911,12 @@ function keyPressed() {
 // =====================
 function mousePressed() {
   if (filterEditMode) return;
+
+  if (drawMode &&
+    mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+    mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+  return; // drawing will happen in mouseDragged
+  }
   
   // Place shape if in shapeMode and click in scrapbook
   // Place shape if in shapeMode and click in scrapbook
@@ -965,6 +1028,38 @@ function mousePressed() {
 }
 
 function mouseDragged() {
+  // 1) Freehand drawing / erasing
+  if (drawMode &&
+      mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight &&
+      pmouseX >= scrapbookX && pmouseX <= scrapbookX + scrapbookWidth &&
+      pmouseY >= scrapbookY && pmouseY <= scrapbookY + scrapbookHeight) {
+    
+    let lx1 = pmouseX - scrapbookX;
+    let ly1 = pmouseY - scrapbookY;
+    let lx2 = mouseX - scrapbookX;
+    let ly2 = mouseY - scrapbookY;
+
+    drawingLayer.push();
+    drawingLayer.strokeWeight(thicknessSlider.value());
+
+    if (eraserMode) {
+      // erase makes transparent strokes
+      drawingLayer.erase();
+      drawingLayer.stroke(255); // stroke color doesn't really matter here
+    } else {
+      drawingLayer.noErase();
+      drawingLayer.stroke(colorPicker.color());
+    }
+
+    drawingLayer.line(lx1, ly1, lx2, ly2);
+    drawingLayer.noErase();
+    drawingLayer.pop();
+
+    return;
+  }
+
+  // 2) Normal dragging of stickers/images/shapes/text (when not drawing)
   if (selectedSticker) {
     selectedSticker.drag();
   } else if (selectedImage) {
@@ -983,6 +1078,7 @@ function mouseDragged() {
     selectedText.drag();
   }
 }
+
 
 function mouseReleased() {
   if (selectedSticker) {
@@ -1006,5 +1102,8 @@ function mouseReleased() {
   if (selectedText) {
     selectedText.stopDrag();
     selectedText = null;
+  }
+  if (drawMode) {
+    drawingLayer.noErase();
   }
 }
