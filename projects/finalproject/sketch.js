@@ -2,7 +2,7 @@
 // Used with the help of GitHub Copilot
 
 let canvasWidth;
-let canvasHeight;
+let canvasHeight; 
 
 // Toolbar variables
 let toolbarHeight = 160;
@@ -26,6 +26,8 @@ let eraserMode = false;
 let thicknessSlider;
 let eraserBtn;
 let clearDrawBtn;
+let clipboardItem = null; 
+let clipboardType = null;  
 
 // Scrapbook area variables
 let scrapbookX;
@@ -426,6 +428,32 @@ function setup() {
   ];
 }
 
+async function requestSticker(promptText) {
+  const res = await fetch('http://127.0.0.1:8000/generate-sticker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: promptText })
+  });
+
+  const data = await res.json();
+  const imgData = 'data:image/png;base64,' + data.image_b64;
+
+  loadImage(imgData, (img) => {
+    let newSticker = new ImageElement(
+      img,
+      scrapbookX + scrapbookWidth / 2,
+      scrapbookY + scrapbookHeight / 2,
+      100,
+      100,
+      'None',
+      false
+    );
+    imageElements.push(newSticker);
+  });
+}
+
+
+
 // =====================
 // Setup Toolbar
 // =====================
@@ -535,9 +563,7 @@ function setupToolbarButtons() {
   thicknessSlider.position(toolX + toolSpacing * 3, buttonY + 123);
   thicknessSlider.style('width', '100px');
 
-  
-  
-  // Stickers button
+  // Stickers button (now also triggers AI sticker generation)
   stickersBtn = createButton('Stickers');
   stickersBtn.position(toolX + toolSpacing * 4, buttonY);
   stickersBtn.size(buttonWidth, 40);
@@ -546,6 +572,21 @@ function setupToolbarButtons() {
   stickersBtn.style('border', 'none');
   stickersBtn.style('border-radius', '5px');
   stickersBtn.style('cursor', 'pointer');
+  stickersBtn.mousePressed(async () => {
+    // don’t interrupt other modes
+    if (typingMode || filterEditMode || shapeMode || drawMode) return;
+
+    const promptText = window.prompt('Describe a sticker to generate:');
+    if (!promptText || !promptText.trim()) return;
+
+    try {
+      await requestSticker(promptText.trim());
+    } catch (err) {
+      console.error(err);
+      alert('Sorry, there was an error generating your sticker.');
+    }
+  });
+
   
   // Change Background Color button
   changeBgBtn = createButton('Change Background Color');
@@ -842,7 +883,60 @@ function keyPressed() {
     return false;
   }
 
-  // === 2) Delete stuff when NOT typing ===
+  // === 2) DUPLICATE selected item with "D" ===
+  if (!typingMode && (key === 'd' || key === 'D')) {
+    const offset = 20;  // so it doesn’t sit exactly on top
+
+    if (selectedImage) {
+      let src = selectedImage;
+      let clone = new ImageElement(
+        src.img,
+        src.x + offset,
+        src.y + offset,
+        src.w,
+        src.h,
+        src.filter,
+        src.isSticker
+      );
+      imageElements.push(clone);
+      selectedImage = clone;
+      selectedShape = null;
+      selectedText = null;
+    } else if (selectedShape) {
+      let src = selectedShape;
+      let clone = new ShapeElement(
+        src.x + offset,
+        src.y + offset,
+        src.w,
+        src.h,
+        src.color,
+        src.type,
+        src.filled
+      );
+      shapeElements.push(clone);
+      selectedShape = clone;
+      selectedImage = null;
+      selectedText = null;
+    } else if (selectedText) {
+      let src = selectedText;
+      let clone = new TextElement(
+        src.content,
+        src.x + offset,
+        src.y + offset,
+        src.size,
+        src.color,
+        src.font
+      );
+      textElements.push(clone);
+      selectedText = clone;
+      selectedImage = null;
+      selectedShape = null;
+    }
+
+    return false; // don't let the browser do anything weird
+  }
+
+  // === 3) Delete stuff when NOT typing ===
   if (!typingMode && (keyCode === DELETE || keyCode === BACKSPACE)) {
     // Try deleting an image (includes dropped stickers)
     for (let i = imageElements.length - 1; i >= 0; i--) {
@@ -871,7 +965,7 @@ function keyPressed() {
     return false; // prevent browser back navigation
   }
 
-  // === 3) Typing mode behavior ===
+  // === 4) Typing mode behavior ===
   if (typingMode) {
     if (keyCode === ENTER) {
       if (currentText.trim() !== '') {
@@ -906,20 +1000,52 @@ function keyPressed() {
   }
 }
 
+
 // =====================
 // Mouse interactions
 // =====================
 function mousePressed() {
   if (filterEditMode) return;
 
+  // 1) Drawing mode: let mouseDragged handle the drawing
   if (drawMode &&
-    mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
-    mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
-  return; // drawing will happen in mouseDragged
+      mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+    return;
   }
-  
-  // Place shape if in shapeMode and click in scrapbook
-  // Place shape if in shapeMode and click in scrapbook
+
+  // 2) Typing mode: if we click on existing text, exit typing and select/drag it.
+  if (typingMode &&
+      mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+
+    // Check from topmost text down
+    for (let i = textElements.length - 1; i >= 0; i--) {
+      let t = textElements[i];
+      if (t.isMouseOver()) {
+        // exit typing mode
+        typingMode = false;
+        currentText = '';
+        addTextBtn.style('background-color', '#ddd');
+
+        // select this text and start dragging it
+        if (t.startDrag()) {
+          selectedText = t;
+          // bring to front
+          textElements.splice(i, 1);
+          textElements.push(t);
+          return;
+        }
+      }
+    }
+
+    // Otherwise, normal "place caret" behavior for new text
+    typingX = mouseX;
+    typingY = mouseY;
+    return;
+  }
+
+  // 3) Place shape if in shapeMode and click in scrapbook
   if (shapeMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
@@ -935,7 +1061,6 @@ function mousePressed() {
       defaultH = defaultW;
     }
 
-    // 🔹 filled or outline?
     let fillChoice = shapeFillSelector.value(); // "Fill" or "Outline"
     let filled = (fillChoice === 'Fill');
 
@@ -956,16 +1081,8 @@ function mousePressed() {
     return;
   }
 
-  
-  if (typingMode && mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
-      mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
-    typingX = mouseX;
-    typingY = mouseY;
-    return;
-  }
-  
+  // 4) Start dragging sticker from sidebar
   if (!typingMode) {
-    // Start dragging sticker from sidebar
     for (let i = 0; i < stickerPositions.length; i++) {
       let sp = stickerPositions[i];
       let halfSize = sp.size / 2;
@@ -973,7 +1090,15 @@ function mousePressed() {
           mouseY >= sp.y - halfSize && mouseY <= sp.y + halfSize) {
         draggingFromLibrary = true;
         let stickerCopy = sp.sticker.img.get();
-        selectedSticker = new ImageElement(stickerCopy, mouseX, mouseY, sp.size, sp.size, 'None', true);
+        selectedSticker = new ImageElement(
+          stickerCopy,
+          mouseX,
+          mouseY,
+          sp.size,
+          sp.size,
+          'None',
+          true
+        );
         selectedSticker.dragging = true;
         selectedSticker.offsetX = 0;
         selectedSticker.offsetY = 0;
@@ -981,51 +1106,61 @@ function mousePressed() {
       }
     }
   }
-  
+
   if (!typingMode) {
-    // First: check shapes (so they sit above images)
+    // TEXT (topmost – drawn last)
+    for (let i = textElements.length - 1; i >= 0; i--) {
+      let t = textElements[i];
+      if (t.startDrag()) {
+        selectedText = t;
+        selectedShape = null;
+        selectedImage = null;
+        // bring to front
+        textElements.splice(i, 1);
+        textElements.push(t);
+        return;
+      }
+    }
+
+    // SHAPES (middle layer)
     for (let i = shapeElements.length - 1; i >= 0; i--) {
       let shapeEl = shapeElements[i];
       if (shapeEl.startResize() || shapeEl.startDrag()) {
         selectedShape = shapeEl;
+        selectedText = null;
+        selectedImage = null;
         shapeElements.splice(i, 1);
         shapeElements.push(shapeEl);
         return;
       }
     }
 
-    // Then check images
+    // IMAGES (bottom layer)
     for (let i = imageElements.length - 1; i >= 0; i--) {
       let imgEl = imageElements[i];
       if (imgEl.startResize() || imgEl.startDrag()) {
         selectedImage = imgEl;
+        selectedShape = null;
+        selectedText = null;
         imageElements.splice(i, 1);
         imageElements.push(imgEl);
         return;
       }
     }
-
-    // Finally text
-    for (let i = textElements.length - 1; i >= 0; i--) {
-      if (textElements[i].startDrag()) {
-        selectedText = textElements[i];
-        textElements.splice(i, 1);
-        textElements.push(selectedText);
-        break;
-      }
-    }
   }
 
-    // Click empty scrapbook area to deselect shape
+
+  // 6) If we clicked empty scrapbook area, clear selection
   if (!typingMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
-
-    // if we got here, no shape/image/text was grabbed (those return earlier)
-    selectedShape = null;
+    selectedShape  = null;
+    selectedImage  = null;
+    selectedText   = null;
   }
-
 }
+
+
 
 function mouseDragged() {
   // 1) Freehand drawing / erasing
@@ -1092,18 +1227,21 @@ function mouseReleased() {
     selectedSticker = null;
     draggingFromLibrary = false;
   }
+
   if (selectedImage) {
+    // stop dragging/resizing, but KEEP it selected
     selectedImage.stopInteraction();
-    selectedImage = null;
   }
   if (selectedShape) {
     selectedShape.stopInteraction();
   }
   if (selectedText) {
     selectedText.stopDrag();
-    selectedText = null;
+    // KEEP selectedText so we can duplicate it
   }
+
   if (drawMode) {
     drawingLayer.noErase();
   }
 }
+
