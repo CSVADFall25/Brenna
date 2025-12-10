@@ -5,7 +5,7 @@ let canvasWidth;
 let canvasHeight; 
 
 // Toolbar variables
-let toolbarHeight = 160;
+let toolbarHeight = 175;
 let toolbarBgColor;
 let addTextBtn;
 let addImageBtn;
@@ -189,6 +189,7 @@ class ImageElement {
     this.offsetY = 0;
     this.handleSize = 50;
     this.angle = 0;
+    this.alpha = 255; // transparency: 0 (transparent) to 255 (opaque)
   }
 
   display() {
@@ -198,7 +199,9 @@ class ImageElement {
     translate(cx, cy);
     rotate(this.angle);
     imageMode(CENTER);
+    tint(255, this.alpha); // apply transparency
     image(this.img, 0, 0, this.w, this.h);
+    noTint();
     pop();
   }
   
@@ -1106,6 +1109,7 @@ function keyPressed() {
     return false;
   }
 
+  // Rotation with LEFT/RIGHT arrows
   if (!typingMode && (keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW)) {
     const step = radians(5); // 5 degrees per press
 
@@ -1118,6 +1122,19 @@ function keyPressed() {
       selectedShape.angle += (keyCode === LEFT_ARROW ? -step : step);
     }
     return false; // prevent page scrolling with arrow keys
+  }
+
+  // Transparency control with UP/DOWN arrows (images only)
+  if (!typingMode && (keyCode === UP_ARROW || keyCode === DOWN_ARROW)) {
+    if (selectedImage) {
+      const alphaStep = 30; // transparency change per press
+      if (keyCode === UP_ARROW) {
+        selectedImage.alpha = min(255, selectedImage.alpha + alphaStep); // more opaque
+      } else {
+        selectedImage.alpha = max(0, selectedImage.alpha - alphaStep); // more transparent
+      }
+      return false; // prevent page scrolling
+    }
   }
 
   // Delete stuff when NOT typing 
