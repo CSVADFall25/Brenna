@@ -39,6 +39,12 @@ let scrapbookHeight;
 let scrapbookBgColor;
 let showGrid = true;
 
+// Gallery view
+let galleryMode = false;
+let viewGalleryBtn;
+let collage1;
+let collage2;
+
 // Text elements array
 let textElements = [];
 let selectedText = null;
@@ -104,6 +110,10 @@ function preload() {
     { name: 'fireworks', img: loadImage('assets/fireworks.gif'), isAnimated: true },
     { name: 'earth', img: loadImage('assets/earth.gif'), isAnimated: true }
   ];
+  
+  // Load gallery example collages
+  collage1 = loadImage('assets/collage1.png');
+  collage2 = loadImage('assets/collage2.png');
 } 
 
 // =====================
@@ -673,6 +683,63 @@ function setupToolbarButtons() {
   colorPicker.style('border-radius', '5px');
   colorPicker.style('cursor', 'pointer');
   
+  // View Gallery button
+  viewGalleryBtn = createButton('View Gallery');
+  viewGalleryBtn.position(windowWidth - 200, 20);
+  viewGalleryBtn.size(140, 40);
+  viewGalleryBtn.style('font-family', 'Georgia, serif');
+  viewGalleryBtn.style('font-size', '14px');
+  viewGalleryBtn.style('background-color', '#B8D4E8');
+  viewGalleryBtn.style('border', 'none');
+  viewGalleryBtn.style('border-radius', '5px');
+  viewGalleryBtn.style('cursor', 'pointer');
+  viewGalleryBtn.mousePressed(() => {
+    galleryMode = !galleryMode;
+    if (galleryMode) {
+      viewGalleryBtn.html('Back to Scrapbook');
+      viewGalleryBtn.style('background-color', '#FFB6C1');
+      // Hide all toolbar buttons
+      addTextBtn.hide();
+      addImageBtn.hide();
+      addShapeBtn.hide();
+      drawBtn.hide();
+      eraserBtn.hide();
+      clearDrawBtn.hide();
+      stickersBtn.hide();
+      changeBgBtn.hide();
+      colorPicker.hide();
+      fontSelector.hide();
+      imageFilterSelector.hide();
+      shapeTypeSelector.hide();
+      shapeFillSelector.hide();
+      thicknessSlider.hide();
+      toggleGridBtn.hide();
+      exportBtn.hide();
+      exportGifBtn.hide();
+    } else {
+      viewGalleryBtn.html('View Gallery');
+      viewGalleryBtn.style('background-color', '#B8D4E8');
+      // Show all toolbar buttons
+      addTextBtn.show();
+      addImageBtn.show();
+      addShapeBtn.show();
+      drawBtn.show();
+      eraserBtn.show();
+      clearDrawBtn.show();
+      stickersBtn.show();
+      changeBgBtn.show();
+      colorPicker.show();
+      fontSelector.show();
+      imageFilterSelector.show();
+      shapeTypeSelector.show();
+      shapeFillSelector.show();
+      thicknessSlider.show();
+      toggleGridBtn.show();
+      exportBtn.show();
+      exportGifBtn.show();
+    }
+  });
+  
   // Toggle Grid button
   toggleGridBtn = createButton('Hide Grid');
   toggleGridBtn.position(windowWidth - 200, windowHeight - 200);
@@ -901,11 +968,15 @@ function handleImageFile(file) {
 function draw() {
   background(220);
   
-  // Draw toolbar
-  drawToolbar();
-  
-  // Draw scrapbook area
-  drawScrapbook();
+  if (galleryMode) {
+    drawGallery();
+  } else {
+    // Draw toolbar
+    drawToolbar();
+    
+    // Draw scrapbook area
+    drawScrapbook();
+  }
 }
 
 function drawToolbar() {
@@ -1042,6 +1113,113 @@ function drawGifs() {
   
   for (let gifPos of gifPositions) {
     image(gifPos.gif.img, gifPos.x, gifPos.y, gifPos.size, gifPos.size);
+  }
+  
+  pop();
+}
+
+// =====================
+// Draw Gallery
+// =====================
+function drawGallery() {
+  push();
+  
+  // Gallery title toolbar 
+  fill(70, 70, 80);
+  noStroke();
+  rect(0, 0, canvasWidth, toolbarHeight);
+  
+  fill(255);
+  textFont('Georgia');
+  textStyle(BOLD);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  text('📚 My Scrapbooks 📚', canvasWidth / 2, toolbarHeight / 2);
+  
+  // Gallery grid - 3 columns, 2 rows of placeholder scrapbook thumbnails
+  let thumbnailWidth = 300;
+  let thumbnailHeight = 200;
+  let spacing = 50;
+  let startX = (canvasWidth - (thumbnailWidth * 3 + spacing * 2)) / 2;
+  let startY = toolbarHeight + 80;
+  
+  textStyle(NORMAL);
+  
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 3; col++) {
+      let x = startX + col * (thumbnailWidth + spacing);
+      let y = startY + row * (thumbnailHeight + spacing);
+      let index = row * 3 + col;
+      
+      if (index === 0) {
+        // Draw the collage1 image 
+        push();
+        drawingContext.save();
+        drawingContext.beginPath();
+        drawingContext.roundRect(x, y, thumbnailWidth, thumbnailHeight, 10);
+        drawingContext.clip();
+        
+        imageMode(CORNER);
+        image(collage1, x, y, thumbnailWidth, thumbnailHeight);
+        
+        drawingContext.restore();
+        pop();
+        
+        // Border
+        noFill();
+        stroke(150);
+        strokeWeight(2);
+        rect(x, y, thumbnailWidth, thumbnailHeight, 10);
+        
+        // Label
+        fill(70, 70, 80);
+        noStroke();
+        textSize(14);
+        textAlign(CENTER, CENTER);
+        text('My First Scrapbook', x + thumbnailWidth / 2, y + thumbnailHeight + 20);
+      } else if (index === 1) {
+        // Draw the collage2 image 
+        push();
+        drawingContext.save();
+        drawingContext.beginPath();
+        drawingContext.roundRect(x, y, thumbnailWidth, thumbnailHeight, 10);
+        drawingContext.clip();
+        
+        imageMode(CORNER);
+        image(collage2, x, y, thumbnailWidth, thumbnailHeight);
+        
+        drawingContext.restore();
+        pop();
+        
+        // Border
+        noFill();
+        stroke(150);
+        strokeWeight(2);
+        rect(x, y, thumbnailWidth, thumbnailHeight, 10);
+        
+        // Label
+        fill(70, 70, 80);
+        noStroke();
+        textSize(14);
+        textAlign(CENTER, CENTER);
+        text('Summer Memories', x + thumbnailWidth / 2, y + thumbnailHeight + 20);
+      } else {
+        // Placeholder thumbnail
+        fill(240);
+        stroke(150);
+        strokeWeight(2);
+        rect(x, y, thumbnailWidth, thumbnailHeight, 10);
+        
+        // Placeholder text
+        fill(150);
+        noStroke();
+        textSize(16);
+        textAlign(CENTER, CENTER);
+        text('Scrapbook #' + (index + 1), x + thumbnailWidth / 2, y + thumbnailHeight / 2 - 20);
+        textSize(14);
+        text('(Coming Soon)', x + thumbnailWidth / 2, y + thumbnailHeight / 2 + 10);
+      }
+    }
   }
   
   pop();
