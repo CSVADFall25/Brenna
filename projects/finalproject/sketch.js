@@ -1,5 +1,5 @@
 // Brenna Scholte & Ally Chu
-// Used with the help of GitHub Copilot
+// Used with the help of GitHub Copilot and ChatGPT
 
 let canvasWidth;
 let canvasHeight; 
@@ -15,7 +15,11 @@ let stickersBtn;
 let changeBgBtn;
 let toggleGridBtn;
 let exportBtn;
+let exportGifBtn;
 let colorPicker;
+let isRecordingGif = false;
+let mediaRecorder;
+let recordedChunks = [];
 let fontSelector;
 let imageFilterSelector;
 let imageInput; // hidden file input
@@ -26,8 +30,6 @@ let eraserMode = false;
 let thicknessSlider;
 let eraserBtn;
 let clearDrawBtn;
-let clipboardItem = null; 
-let clipboardType = null;  
 
 // Scrapbook area variables
 let scrapbookX;
@@ -67,8 +69,21 @@ let stickerPositions = []; // Store scattered positions
 let selectedSticker = null; // Currently dragging sticker
 let draggingFromLibrary = false;
 
+// GIF library (right side)
+let gifLibrary = [];
+let gifPositions = [];
+let selectedGif = null;
+let draggingGifFromLibrary = false;
+
 // Sticker assets from:
 // <a href="https://www.flaticon.com/free-stickers/cute" title="cute stickers">Cute stickers created by barnstudio - Flaticon</a>
+
+// Gif assets from:
+// <iframe src="https://giphy.com/embed/LPBkMg3ssaCf9PTXvs" width="480" height="101" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/stickers/adventure-png-abenteuer-LPBkMg3ssaCf9PTXvs">via GIPHY</a></p>
+// <iframe src="https://giphy.com/embed/NxpMNq17Y2Khq" width="480" height="456" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/stickers/fireworks-transparency-NxpMNq17Y2Khq">via GIPHY</a></p>
+// <iframe src="https://giphy.com/embed/10Bb1Bq7BMi9Co" width="480" height="480" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/stickers/happy-excited-10Bb1Bq7BMi9Co">via GIPHY</a></p>
+// <iframe src="https://giphy.com/embed/wTpkLqAZf3NFcgzQ4J" width="384" height="480" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/stickers/vaporwave-png-cyberghetto-wTpkLqAZf3NFcgzQ4J">via GIPHY</a></p>
+// <iframe src="https://giphy.com/embed/4JXQArc0SQlh5diE9B" width="357" height="480" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/stickers/PDPDPD-pdpdtest-4JXQArc0SQlh5diE9B">via GIPHY</a></p>
 
 function preload() {
   // Load all sticker images
@@ -80,6 +95,14 @@ function preload() {
     { name: 'lemon', img: loadImage('assets/lemon.png') },
     { name: 'cat', img: loadImage('assets/cat.png') },
     { name: 'socks', img: loadImage('assets/socks.png') }
+  ];
+  
+  // Load animated GIF files for right side
+  gifLibrary = [
+    { name: 'heart', img: loadImage('assets/heart.gif'), isAnimated: true },
+    { name: 'stars', img: loadImage('assets/stars.gif'), isAnimated: true },
+    { name: 'fireworks', img: loadImage('assets/fireworks.gif'), isAnimated: true },
+    { name: 'earth', img: loadImage('assets/earth.gif'), isAnimated: true }
   ];
 } 
 
@@ -179,8 +202,6 @@ class ImageElement {
     pop();
   }
   
-  
-
   isMouseOver() {
     return mouseX >= this.x && mouseX <= this.x + this.w &&
            mouseY >= this.y && mouseY <= this.y + this.h;
@@ -221,7 +242,7 @@ class ImageElement {
 
   resize() {
     if (this.resizing) {
-      // simple resize from top-left corner, based on mouse position
+      // simple resize from bottom-right corner, based on mouse position
       this.w = max(20, mouseX - this.x);
       this.h = max(20, mouseY - this.y);
     }
@@ -346,8 +367,6 @@ class ShapeElement {
     endShape(CLOSE);
   }
 
-  // (rest of class stays the same)
-
   isMouseOver() {
     return mouseX >= this.x && mouseX <= this.x + this.w &&
            mouseY >= this.y && mouseY <= this.y + this.h;
@@ -445,6 +464,16 @@ function setup() {
     { sticker: stickerLibrary[5], x: scrapbookX - 170, y: scrapbookY + 390, size: stickerSize },    // cat
     { sticker: stickerLibrary[6], x: scrapbookX - 90, y: scrapbookY + 450, size: stickerSize }      // socks
   ];
+  
+  // Initialize GIF positions on right side
+  let gifSize = 60;
+  let rightX = scrapbookX + scrapbookWidth;
+  gifPositions = [
+    { gif: gifLibrary[0], x: rightX + 90, y: scrapbookY + 40, size: gifSize },      // heart
+    { gif: gifLibrary[1], x: rightX + 170, y: scrapbookY + 110, size: gifSize },    // stars
+    { gif: gifLibrary[2], x: rightX + 90, y: scrapbookY + 200, size: gifSize },     // fireworks
+    { gif: gifLibrary[3], x: rightX + 170, y: scrapbookY + 290, size: gifSize }     // earth
+  ];
 }
 
 async function requestSticker(promptText) {
@@ -472,7 +501,6 @@ async function requestSticker(promptText) {
 }
 
 
-
 // =====================
 // Setup Toolbar
 // =====================
@@ -492,7 +520,7 @@ function setupToolbarButtons() {
   addTextBtn.style('border-radius', '5px');
   addTextBtn.style('cursor', 'pointer');
   addTextBtn.mousePressed(() => {
-    if (filterEditMode) return; // Don't allow if editing image
+    if (filterEditMode || shapeMode || drawMode) return; // Don't allow if in other modes
     typingMode = true;
     currentText = '';
     addTextBtn.style('background-color', '#90EE90');
@@ -508,7 +536,7 @@ function setupToolbarButtons() {
   addImageBtn.style('border-radius', '5px');
   addImageBtn.style('cursor', 'pointer');
   addImageBtn.mousePressed(() => {
-    if (typingMode) return; // Don't allow if editing text
+    if (typingMode || shapeMode || drawMode) return; // Don't allow if in other modes
     filterEditMode = true;
     addImageBtn.style('background-color', '#90EE90');
     imageInput.elt.value = '';
@@ -525,7 +553,7 @@ function setupToolbarButtons() {
   addShapeBtn.style('border-radius', '5px');
   addShapeBtn.style('cursor', 'pointer');
   addShapeBtn.mousePressed(() => {
-    if (typingMode || filterEditMode) return;
+    if (typingMode || filterEditMode || drawMode) return;
     shapeMode = !shapeMode;
     addShapeBtn.style('background-color', shapeMode ? '#90EE90' : '#ddd');
   });
@@ -617,6 +645,7 @@ function setupToolbarButtons() {
   changeBgBtn.style('border-radius', '5px');
   changeBgBtn.style('cursor', 'pointer');
   changeBgBtn.mousePressed(() => {
+    if (typingMode || filterEditMode || shapeMode || drawMode) return;
     let chosenColor = colorPicker.color();
     if (selectedShape) {
       selectedShape.color = chosenColor;
@@ -635,7 +664,7 @@ function setupToolbarButtons() {
   
   // Toggle Grid button
   toggleGridBtn = createButton('Hide Grid');
-  toggleGridBtn.position(windowWidth - 200, windowHeight - 150);
+  toggleGridBtn.position(windowWidth - 200, windowHeight - 200);
   toggleGridBtn.size(140, 40);
   toggleGridBtn.style('font-size', '14px');
   toggleGridBtn.style('background-color', 'rgb(70, 70, 80)');
@@ -649,8 +678,8 @@ function setupToolbarButtons() {
   });
   
   // Export button
-  exportBtn = createButton('Export Scrapbook');
-  exportBtn.position(windowWidth - 200, windowHeight - 100);
+  exportBtn = createButton('Export PNG');
+  exportBtn.position(windowWidth - 200, windowHeight - 150);
   exportBtn.size(140, 40);
   exportBtn.style('font-size', '14px');
   exportBtn.style('background-color', '#87CEEB');
@@ -658,7 +687,22 @@ function setupToolbarButtons() {
   exportBtn.style('border-radius', '5px');
   exportBtn.style('cursor', 'pointer');
   exportBtn.mousePressed(() => {
+    if (typingMode || filterEditMode || shapeMode || drawMode) return;
     exportScrapbook();
+  });
+  
+  // Export Video button
+  exportGifBtn = createButton('Export Video');
+  exportGifBtn.position(windowWidth - 200, windowHeight - 100);
+  exportGifBtn.size(140, 40);
+  exportGifBtn.style('font-size', '14px');
+  exportGifBtn.style('background-color', '#FFB6C1');
+  exportGifBtn.style('border', 'none');
+  exportGifBtn.style('border-radius', '5px');
+  exportGifBtn.style('cursor', 'pointer');
+  exportGifBtn.mousePressed(() => {
+    if (typingMode || filterEditMode || shapeMode || drawMode) return;
+    startVideoRecording();
   });
   
   // Font selector (under text button)
@@ -723,6 +767,91 @@ function exportScrapbook() {
 
   let scrapbookImage = get(scrapbookX, scrapbookY, scrapbookWidth, scrapbookHeight);
   save(scrapbookImage, 'my-scrapbook.png');
+}
+
+function startVideoRecording() {
+  if (isRecordingGif) return; // Prevent multiple recordings
+  
+  isRecordingGif = true;
+  showGrid = false;
+  recordedChunks = [];
+  
+  exportGifBtn.html('Recording...');
+  exportGifBtn.style('color', 'white');
+  exportGifBtn.style('background-color', '#FF6B6B');
+  exportGifBtn.attribute('disabled', '');
+  
+  // Store scrapbook coordinates
+  let sbX = scrapbookX;
+  let sbY = scrapbookY;
+  let sbW = scrapbookWidth;
+  let sbH = scrapbookHeight;
+  
+  // Create an offscreen canvas for scrapbook area only
+  let offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = sbW;
+  offscreenCanvas.height = sbH;
+  let offscreenCtx = offscreenCanvas.getContext('2d');
+  
+  // Get main canvas and account for pixel density
+  let mainCanvas = document.querySelector('canvas');
+  let dpr = window.devicePixelRatio || 1;
+  
+  // Capture scrapbook area at 30 fps
+  let captureInterval = setInterval(() => {
+    // Copy only the scrapbook area from main canvas, accounting for device pixel ratio
+    offscreenCtx.drawImage(
+      mainCanvas,
+      sbX * dpr, sbY * dpr, sbW * dpr, sbH * dpr,  // source region (scaled by DPR)
+      0, 0, sbW, sbH                                 // destination (full offscreen canvas)
+    );
+  }, 1000 / 30);
+  
+  let stream = offscreenCanvas.captureStream(30); // 30 fps
+  
+  // Create MediaRecorder with higher quality settings
+  mediaRecorder = new MediaRecorder(stream, {
+    mimeType: 'video/webm;codecs=vp9',
+    videoBitsPerSecond: 8000000  // 8Mbps for better quality
+  });
+  
+  // Collect data chunks
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      recordedChunks.push(event.data);
+    }
+  };
+  
+  // When recording stops, download the video
+  mediaRecorder.onstop = () => {
+    clearInterval(captureInterval);
+    
+    let blob = new Blob(recordedChunks, { type: 'video/webm' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-scrapbook.webm';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    // Reset UI
+    isRecordingGif = false;
+    showGrid = true;
+    toggleGridBtn.html('Hide Grid'); 
+    exportGifBtn.html('Export Video');
+    exportGifBtn.style('background-color', '#FFB6C1');
+    exportGifBtn.removeAttribute('disabled');
+  };
+  
+  // Start recording
+  mediaRecorder.start();
+  
+  // Stop recording after 5 seconds
+  setTimeout(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  }, 6000);
 }
 
 // =====================
@@ -818,9 +947,17 @@ function drawScrapbook() {
   // Draw stickers on the sides
   drawStickers();
   
+  // Draw GIFs on right side
+  drawGifs();
+  
   // Draw dragging sticker preview
   if (selectedSticker) {
     selectedSticker.display();
+  }
+  
+  // Draw dragging gif preview
+  if (selectedGif) {
+    selectedGif.display();
   }
   
   // Draw temp image with live filter preview
@@ -881,10 +1018,24 @@ function drawStickers() {
 }
 
 // =====================
+// Draw GIFs
+// =====================
+function drawGifs() {
+  push();
+  imageMode(CENTER);
+  
+  for (let gifPos of gifPositions) {
+    image(gifPos.gif.img, gifPos.x, gifPos.y, gifPos.size, gifPos.size);
+  }
+  
+  pop();
+}
+
+// =====================
 // Keyboard
 // =====================
 function keyPressed() {
-  // === 1) Image filter edit mode ===
+  // Image filter edit mode 
   if (filterEditMode) {
     if (keyCode === ENTER) {
       if (tempImage) {
@@ -902,7 +1053,7 @@ function keyPressed() {
     return false;
   }
 
-  // === 2) DUPLICATE selected item with "D" ===
+  // DUPLICATE selected item with "D" 
   if (!typingMode && (key === 'd' || key === 'D')) {
     const offset = 20;  // so it doesn’t sit exactly on top
 
@@ -966,12 +1117,10 @@ function keyPressed() {
     else if (selectedShape) {
       selectedShape.angle += (keyCode === LEFT_ARROW ? -step : step);
     }
-    // (add selectedShape.angle here later if you give ShapeElement an angle field)
-
     return false; // prevent page scrolling with arrow keys
   }
 
-  // === 3) Delete stuff when NOT typing ===
+  // Delete stuff when NOT typing 
   if (!typingMode && (keyCode === DELETE || keyCode === BACKSPACE)) {
     // Try deleting an image (includes dropped stickers)
     for (let i = imageElements.length - 1; i >= 0; i--) {
@@ -1000,7 +1149,7 @@ function keyPressed() {
     return false; // prevent browser back navigation
   }
 
-  // === 4) Typing mode behavior ===
+  // Typing mode behavior 
   if (typingMode) {
     if (keyCode === ENTER) {
       if (currentText.trim() !== '') {
@@ -1042,14 +1191,14 @@ function keyPressed() {
 function mousePressed() {
   if (filterEditMode) return;
 
-  // 1) Drawing mode: let mouseDragged handle the drawing
+  // Drawing mode: let mouseDragged handle the drawing
   if (drawMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
     return;
   }
 
-  // 2) Typing mode: if we click on existing text, exit typing and select/drag it.
+  // Typing mode: if we click on existing text, exit typing and select/drag it.
   if (typingMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
@@ -1080,7 +1229,7 @@ function mousePressed() {
     return;
   }
 
-  // 3) Place shape if in shapeMode and click in scrapbook
+  // Place shape if in shapeMode and click in scrapbook
   if (shapeMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
@@ -1116,33 +1265,55 @@ function mousePressed() {
     return;
   }
 
-  // 4) Start dragging sticker from sidebar
-  if (!typingMode) {
+  // Start dragging sticker from sidebar
+  if (!typingMode && !filterEditMode && !shapeMode && !drawMode) {
     for (let i = 0; i < stickerPositions.length; i++) {
       let sp = stickerPositions[i];
       let halfSize = sp.size / 2;
       if (mouseX >= sp.x - halfSize && mouseX <= sp.x + halfSize &&
           mouseY >= sp.y - halfSize && mouseY <= sp.y + halfSize) {
         draggingFromLibrary = true;
-        let stickerCopy = sp.sticker.img.get();
         selectedSticker = new ImageElement(
-          stickerCopy,
-          mouseX,
-          mouseY,
+          sp.sticker.img,
+          mouseX - sp.size / 2,
+          mouseY - sp.size / 2,
           sp.size,
           sp.size,
           'None',
           true
         );
         selectedSticker.dragging = true;
-        selectedSticker.offsetX = 0;
-        selectedSticker.offsetY = 0;
+        selectedSticker.offsetX = selectedSticker.x - mouseX;
+        selectedSticker.offsetY = selectedSticker.y - mouseY;
+        return;
+      }
+    }
+    
+    // Start dragging GIF from right sidebar
+    for (let i = 0; i < gifPositions.length; i++) {
+      let gp = gifPositions[i];
+      let halfSize = gp.size / 2;
+      if (mouseX >= gp.x - halfSize && mouseX <= gp.x + halfSize &&
+          mouseY >= gp.y - halfSize && mouseY <= gp.y + halfSize) {
+        draggingGifFromLibrary = true;
+        selectedGif = new ImageElement(
+          gp.gif.img,
+          mouseX - gp.size / 2,
+          mouseY - gp.size / 2,
+          gp.size,
+          gp.size,
+          'None',
+          true
+        );
+        selectedGif.dragging = true;
+        selectedGif.offsetX = selectedGif.x - mouseX;
+        selectedGif.offsetY = selectedGif.y - mouseY;
         return;
       }
     }
   }
 
-  if (!typingMode) {
+  if (!typingMode && !filterEditMode && !shapeMode && !drawMode) {
     // TEXT (topmost – drawn last)
     for (let i = textElements.length - 1; i >= 0; i--) {
       let t = textElements[i];
@@ -1185,8 +1356,8 @@ function mousePressed() {
   }
 
 
-  // 6) If we clicked empty scrapbook area, clear selection
-  if (!typingMode &&
+  // If we clicked empty scrapbook area, clear selection
+  if (!typingMode && !filterEditMode && !shapeMode && !drawMode &&
       mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
       mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
     selectedShape  = null;
@@ -1232,6 +1403,8 @@ function mouseDragged() {
   // 2) Normal dragging of stickers/images/shapes/text (when not drawing)
   if (selectedSticker) {
     selectedSticker.drag();
+  } else if (selectedGif) {
+    selectedGif.drag();
   } else if (selectedImage) {
     if (selectedImage.resizing) {
       selectedImage.resize();
@@ -1262,6 +1435,18 @@ function mouseReleased() {
     selectedSticker = null;
     draggingFromLibrary = false;
   }
+  
+  if (selectedGif) {
+    selectedGif.stopInteraction();
+    // Add to imageElements if dropped on scrapbook
+    if (mouseX >= scrapbookX && mouseX <= scrapbookX + scrapbookWidth &&
+        mouseY >= scrapbookY && mouseY <= scrapbookY + scrapbookHeight) {
+      selectedGif.isSticker = false;
+      imageElements.push(selectedGif);
+    }
+    selectedGif = null;
+    draggingGifFromLibrary = false;
+  }
 
   if (selectedImage) {
     // stop dragging/resizing, but KEEP it selected
@@ -1274,7 +1459,6 @@ function mouseReleased() {
     selectedText.stopDrag();
     // KEEP selectedText so we can duplicate it
   }
-
   if (drawMode) {
     drawingLayer.noErase();
   }
