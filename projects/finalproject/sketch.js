@@ -97,16 +97,23 @@ class TextElement {
     this.dragging = false;
     this.offsetX = 0;
     this.offsetY = 0;
+    this.angle = 0;
   }
   
   display() {
+    push();
     textFont(this.font);
     fill(this.color);
     noStroke();
     textSize(this.size);
     textAlign(LEFT, TOP);
-    text(this.content, this.x, this.y);
+  
+    translate(this.x, this.y);
+    rotate(this.angle);
+    text(this.content, 0, 0);
+    pop();
   }
+  
   
   isMouseOver() {
     push();
@@ -158,14 +165,20 @@ class ImageElement {
     this.offsetX = 0;
     this.offsetY = 0;
     this.handleSize = 50;
+    this.angle = 0;
   }
 
   display() {
     push();
-    image(this.img, this.x, this.y, this.w, this.h);
+    const cx = this.x + this.w / 2;
+    const cy = this.y + this.h / 2;
+    translate(cx, cy);
+    rotate(this.angle);
+    imageMode(CENTER);
+    image(this.img, 0, 0, this.w, this.h);
     pop();
-    // no visible resize handle, just the invisible hitbox
   }
+  
   
 
   isMouseOver() {
@@ -258,10 +271,20 @@ class ShapeElement {
     this.offsetX = 0;
     this.offsetY = 0;
     this.handleSize = 40;
+    this.angle = 0; 
   }
 
   display() {
     push();
+
+    let cx = this.x + this.w / 2;
+    let cy = this.y + this.h / 2;
+    let size = min(this.w, this.h);
+
+    // move to center of shape + rotate
+    translate(cx, cy);
+    rotate(this.angle);
+
     if (this.filled) {
       fill(this.color);
       noStroke();
@@ -271,51 +294,46 @@ class ShapeElement {
       strokeWeight(4);
     }
 
-    let cx = this.x + this.w / 2;
-    let cy = this.y + this.h / 2;
-    let size = min(this.w, this.h);
-
     switch (this.type) {
       case 'rectangle':
-        rect(this.x, this.y, this.w, this.h);
+        rectMode(CENTER);
+        rect(0, 0, this.w, this.h);
         break;
       case 'square': {
         let s = size;
-        rect(cx - s / 2, cy - s / 2, s, s);
+        rectMode(CENTER);
+        rect(0, 0, s, s);
         break;
       }
       case 'circle': {
         let d = size;
-        ellipse(cx, cy, d, d);
+        ellipse(0, 0, d, d);
         break;
       }
       case 'ellipse':
-        ellipse(cx, cy, this.w, this.h);
+        ellipse(0, 0, this.w, this.h);
         break;
       case 'triangle': {
-        let bottomY = this.y + this.h;
+        // point up
         triangle(
-          cx, this.y,                 // top
-          this.x, bottomY,            // bottom left
-          this.x + this.w, bottomY    // bottom right
+          0, -this.h / 2,           // top
+          -this.w / 2, this.h / 2,  // bottom left
+          this.w / 2, this.h / 2    // bottom right
         );
         break;
       }
       case 'star': {
         let outerR = size / 2;
         let innerR = outerR * 0.5;
-        this.drawStar(cx, cy, outerR, innerR, 5);
+        this.drawStar(0, 0, outerR, innerR, 5);
         break;
       }
     }
 
     pop();
-
-    // show resize handle on hover
   }
 
   drawStar(cx, cy, outerRadius, innerRadius, numPoints) {
-    push();
     beginShape();
     let angleStep = TWO_PI / (numPoints * 2);
     for (let i = 0; i < numPoints * 2; i++) {
@@ -326,8 +344,9 @@ class ShapeElement {
       vertex(sx, sy);
     }
     endShape(CLOSE);
-    pop();
   }
+
+  // (rest of class stays the same)
 
   isMouseOver() {
     return mouseX >= this.x && mouseX <= this.x + this.w &&
@@ -933,7 +952,23 @@ function keyPressed() {
       selectedShape = null;
     }
 
-    return false; // don't let the browser do anything weird
+    return false;
+  }
+
+  if (!typingMode && (keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW)) {
+    const step = radians(5); // 5 degrees per press
+
+    if (selectedImage) {
+      selectedImage.angle += (keyCode === LEFT_ARROW ? -step : step);
+    } else if (selectedText) {
+      selectedText.angle += (keyCode === LEFT_ARROW ? -step : step);
+    }
+    else if (selectedShape) {
+      selectedShape.angle += (keyCode === LEFT_ARROW ? -step : step);
+    }
+    // (add selectedShape.angle here later if you give ShapeElement an angle field)
+
+    return false; // prevent page scrolling with arrow keys
   }
 
   // === 3) Delete stuff when NOT typing ===
