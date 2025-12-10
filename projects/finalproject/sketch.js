@@ -508,7 +508,7 @@ async function requestSticker(promptText) {
 // Setup Toolbar
 // =====================
 function setupToolbarButtons() {
-  let toolX = 250;
+  let toolX = 315;
   let toolSpacing = 120;
   let buttonY = 20;
   let buttonWidth = 100;
@@ -517,6 +517,7 @@ function setupToolbarButtons() {
   addTextBtn = createButton('Add Text');
   addTextBtn.position(toolX, buttonY);
   addTextBtn.size(buttonWidth, 40);
+  addTextBtn.style('font-family', 'Georgia, serif');
   addTextBtn.style('font-size', '14px');
   addTextBtn.style('background-color', '#ddd');
   addTextBtn.style('border', 'none');
@@ -533,6 +534,7 @@ function setupToolbarButtons() {
   addImageBtn = createButton('Add Image');
   addImageBtn.position(toolX + toolSpacing, buttonY);
   addImageBtn.size(buttonWidth, 40);
+  addImageBtn.style('font-family', 'Georgia, serif');
   addImageBtn.style('font-size', '14px');
   addImageBtn.style('background-color', '#ddd');
   addImageBtn.style('border', 'none');
@@ -550,6 +552,7 @@ function setupToolbarButtons() {
   addShapeBtn = createButton('Add Shape');
   addShapeBtn.position(toolX + toolSpacing * 2, buttonY);
   addShapeBtn.size(buttonWidth, 40);
+  addShapeBtn.style('font-family', 'Georgia, serif');
   addShapeBtn.style('font-size', '14px');
   addShapeBtn.style('background-color', '#ddd');
   addShapeBtn.style('border', 'none');
@@ -565,6 +568,7 @@ function setupToolbarButtons() {
   drawBtn = createButton('Draw');
   drawBtn.position(toolX + toolSpacing * 3, buttonY);
   drawBtn.size(buttonWidth, 40);
+  drawBtn.style('font-family', 'Georgia, serif');
   drawBtn.style('font-size', '14px');
   drawBtn.style('background-color', '#ddd');
   drawBtn.style('border', 'none');
@@ -583,6 +587,7 @@ function setupToolbarButtons() {
   eraserBtn = createButton('Eraser');
   eraserBtn.position(toolX + toolSpacing * 3, buttonY + 60);
   eraserBtn.size(buttonWidth, 25);
+  eraserBtn.style('font-family', 'Georgia, serif');
   eraserBtn.style('font-size', '11px');
   eraserBtn.style('background-color', '#ddd');
   eraserBtn.style('border', 'none');
@@ -598,6 +603,7 @@ function setupToolbarButtons() {
   clearDrawBtn = createButton('Clear Drawings');
   clearDrawBtn.position(toolX + toolSpacing * 3, buttonY + 95);
   clearDrawBtn.size(100, 25);
+  clearDrawBtn.style('font-family', 'Georgia, serif');
   clearDrawBtn.style('font-size', '11px');
   clearDrawBtn.style('background-color', '#ddd');
   clearDrawBtn.style('border', 'none');
@@ -614,11 +620,12 @@ function setupToolbarButtons() {
   thicknessSlider.style('width', '100px');
 
   // Stickers button (now also triggers AI sticker generation)
-  stickersBtn = createButton('Stickers');
+  stickersBtn = createButton('Generate a New Sticker!');
   stickersBtn.position(toolX + toolSpacing * 4, buttonY);
-  stickersBtn.size(buttonWidth, 40);
+  stickersBtn.size(buttonWidth, 130);
+  stickersBtn.style('font-family', 'Georgia, serif');
   stickersBtn.style('font-size', '14px');
-  stickersBtn.style('background-color', '#ddd');
+  stickersBtn.style('background-color', '#FFF9C4');
   stickersBtn.style('border', 'none');
   stickersBtn.style('border-radius', '5px');
   stickersBtn.style('cursor', 'pointer');
@@ -640,8 +647,9 @@ function setupToolbarButtons() {
   
   // Change Background Color button
   changeBgBtn = createButton('Change Background Color');
-  changeBgBtn.position(toolX + toolSpacing * 5, buttonY);
+  changeBgBtn.position(toolX + toolSpacing * 5, buttonY + 45);
   changeBgBtn.size(150, 40);
+  changeBgBtn.style('font-family', 'Georgia, serif');
   changeBgBtn.style('font-size', '14px');
   changeBgBtn.style('background-color', '#ddd');
   changeBgBtn.style('border', 'none');
@@ -659,7 +667,7 @@ function setupToolbarButtons() {
   
   // Color picker
   colorPicker = createColorPicker('#000000');
-  colorPicker.position(toolX + toolSpacing * 6 + 50, buttonY);
+  colorPicker.position(toolX + toolSpacing * 6 + 50, buttonY + 45);
   colorPicker.size(40, 40);
   colorPicker.style('border', 'none');
   colorPicker.style('border-radius', '5px');
@@ -669,6 +677,7 @@ function setupToolbarButtons() {
   toggleGridBtn = createButton('Hide Grid');
   toggleGridBtn.position(windowWidth - 200, windowHeight - 200);
   toggleGridBtn.size(140, 40);
+  toggleGridBtn.style('font-family', 'Georgia, serif');
   toggleGridBtn.style('font-size', '14px');
   toggleGridBtn.style('background-color', 'rgb(70, 70, 80)');
   toggleGridBtn.style('color', 'white');
@@ -684,6 +693,7 @@ function setupToolbarButtons() {
   exportBtn = createButton('Export PNG');
   exportBtn.position(windowWidth - 200, windowHeight - 150);
   exportBtn.size(140, 40);
+  exportBtn.style('font-family', 'Georgia, serif');
   exportBtn.style('font-size', '14px');
   exportBtn.style('background-color', '#87CEEB');
   exportBtn.style('border', 'none');
@@ -698,6 +708,7 @@ function setupToolbarButtons() {
   exportGifBtn = createButton('Export Video');
   exportGifBtn.position(windowWidth - 200, windowHeight - 100);
   exportGifBtn.size(140, 40);
+  exportGifBtn.style('font-family', 'Georgia, serif');
   exportGifBtn.style('font-size', '14px');
   exportGifBtn.style('background-color', '#FFB6C1');
   exportGifBtn.style('border', 'none');
@@ -906,9 +917,11 @@ function drawToolbar() {
   
   // Toolbar title
   fill(255);
-  textSize(24);
+  textFont('Georgia');
+  textSize(28);
   textAlign(LEFT, CENTER);
-  text("Scrapbook Maker", 20, toolbarHeight / 2);
+  text("✨ Scrapbook ", 20, toolbarHeight / 2 - 20);
+  text("     Maker ", 20, toolbarHeight / 2 + 20);
   pop();
 }
 
