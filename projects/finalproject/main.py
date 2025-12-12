@@ -25,7 +25,7 @@ class StickerRequest(BaseModel):
 async def generate_sticker(req: StickerRequest):
     full_prompt = (
         f"Generate a 512x512 PNG sticker with transparent background "
-        f"in a cute scrapbook style: {req.prompt}. Make sure its a png file"
+        f"in a cute scrapbook style: {req.prompt}. Make sure it's a png file."
     )
     img_resp = client.images.generate(
         model="gpt-image-1-mini",

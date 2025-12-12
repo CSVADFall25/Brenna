@@ -24,5 +24,3 @@ Project Goals:
   - Add gallery where users can view past scrabooking creations
   - Add layer controls (ex: bring forward/back, delete, duplicate)
   
-
-{ Feedback Received: }
